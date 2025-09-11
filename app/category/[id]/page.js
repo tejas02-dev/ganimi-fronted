@@ -6,11 +6,38 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { 
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import Navbar from "@/components/custom/Navbar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarProvider,
+  SidebarInset,
+} from "@/components/ui/sidebar";
 import { 
   Search, 
   Filter,
@@ -18,7 +45,6 @@ import {
   Star,
   Heart,
   ArrowRight,
-  GraduationCap,
   SlidersHorizontal,
   ChevronDown,
   ChevronLeft,
@@ -37,7 +63,8 @@ export default function CategoryPage() {
   const [services, setServices] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [hasAccess, setHasAccess] = useState(null);
+  const [showAccessDialog, setShowAccessDialog] = useState(false);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,14 +75,41 @@ export default function CategoryPage() {
   const [sortBy, setSortBy] = useState("relevance");
 
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-    
-    fetchCategoryData();
+    checkAccess();
   }, [categoryId]);
+
+  const checkAccess = async () => {
+    try {
+      const response = await fetch(`http://localhost:5500/api/v1/student/category/${categoryId}`, {
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setHasAccess(data.access);
+        
+        if (data.access) {
+          // If user has access, fetch category data
+          fetchCategoryData();
+        } else {
+          // If no access, show dialog
+          setShowAccessDialog(true);
+          setLoading(false);
+        }
+      } else {
+        // If API call fails, assume no access for security
+        setHasAccess(false);
+        setShowAccessDialog(true);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error checking access:", error);
+      // If error occurs, assume no access for security
+      setHasAccess(false);
+      setShowAccessDialog(true);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     applyFilters();
@@ -64,25 +118,38 @@ export default function CategoryPage() {
   const fetchCategoryData = async () => {
     try {
       setLoading(true);
+      console.log("Fetching data for category ID:", categoryId);
       
       // Fetch category info and services in parallel
       const [categoryResponse, servicesResponse] = await Promise.all([
-        fetch(`http://localhost:5500/api/v1/admin/categories/${categoryId}`, {
+        fetch(`http://localhost:5500/api/v1/categories/${categoryId}`, {
           credentials: "include",
         }),
-        fetch(`http://localhost:5500/api/v1/admin/services/categories/${categoryId}`, {
+        fetch(`http://localhost:5500/api/v1/services/category/${categoryId}`, {
           credentials: "include",
         }),
       ]);
 
       if (categoryResponse.ok) {
         const categoryData = await categoryResponse.json();
-        setCategory(categoryData.category?.[0] || null);
+        console.log("Category data:", categoryData); // Debug log
+        // Handle different possible response structures
+        const categoryInfo = categoryData.data?.[0] || categoryData.category?.[0] || categoryData.data || categoryData;
+        console.log("Processed category:", categoryInfo); // Debug the actual category object
+        setCategory(categoryInfo);
+      } else {
+        console.error("Failed to fetch category:", categoryResponse.status, categoryResponse.statusText);
+        // Set a fallback category with the ID
+        setCategory({ 
+          name: `Category ${categoryId}`, 
+          description: 'Discover amazing services in this category' 
+        });
       }
 
       if (servicesResponse.ok) {
         const servicesData = await servicesResponse.json();
-        setServices(Array.isArray(servicesData.services) ? servicesData.services : []);
+        console.log("Services data:", servicesData); // Debug log
+        setServices(Array.isArray(servicesData.data) ? servicesData.data : Array.isArray(servicesData.services) ? servicesData.services : []);
       } else {
         console.warn("Failed to fetch services:", servicesResponse.status);
         setServices([]);
@@ -187,187 +254,223 @@ export default function CategoryPage() {
     );
   }
 
+  // If user doesn't have access, show access denied content
+  if (hasAccess === false) {
+    return (
+      <div className="min-h-screen">
+        <Navbar 
+          searchQuery={searchQuery}
+          onSearchChange={(e) => setSearchQuery(e.target.value)}
+          showSearch={true}
+        />
+        
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Package className="w-10 h-10 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+            <p className="text-gray-600 mb-6">
+              You don't have access to this category. Please purchase access to view the services in this category.
+            </p>
+            <div className="space-y-3">
+              <Button 
+                onClick={() => router.push('/')}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                Go to Home
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => router.back()}
+                className="w-full"
+              >
+                Go Back
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Access Dialog */}
+        <AlertDialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Access Required</AlertDialogTitle>
+              <AlertDialogDescription>
+                You need to purchase access to this category to view its services. 
+                Would you like to explore other categories or go back to the home page?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => router.back()}>
+                Go Back
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => router.push('/')}>
+                Explore Categories
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-md shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center space-x-2 group">
-                <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <GraduationCap className="w-6 h-6 text-white group-hover:rotate-12 transition-transform duration-300" />
-                </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300">
-                  Ganimi
-                </span>
-              </Link>
-            </div>
+    <div className="min-h-screen">
+      {/* Navbar */}
+      <Navbar 
+        searchQuery={searchQuery}
+        onSearchChange={(e) => setSearchQuery(e.target.value)}
+        showSearch={true}
+      />
 
-            {/* Breadcrumb */}
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
-              <ChevronLeft className="w-4 h-4 rotate-180" />
-              <Link href="/categories" className="hover:text-blue-600 transition-colors">Categories</Link>
-              <ChevronLeft className="w-4 h-4 rotate-180" />
-              <span className="text-gray-900 font-medium">{category?.name || 'Category'}</span>
-            </div>
+      {/* Content with proper spacing for navbar */}
+      <div className=""> {/* Add top padding to account for fixed navbar */}
 
-            {/* Back Button */}
-            <Button 
-              variant="outline" 
-              onClick={() => router.back()}
-              className="hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Category Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            {category?.name || 'Category'} Services
-          </h1>
-          <p className="text-lg text-gray-600 mb-4">
-            {category?.description || 'Discover amazing services in this category'}
-          </p>
-          <div className="flex items-center space-x-6 text-sm text-gray-500">
-            <span className="flex items-center">
-              <Package className="w-4 h-4 mr-1" />
-              {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''} available
-            </span>
-            <span className="flex items-center">
-              <Users className="w-4 h-4 mr-1" />
-              {services.length > 0 ? `${Math.floor(services.length * 1.5)}+ providers` : 'No providers yet'}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex gap-8">
-          {/* Left Sidebar - Filters */}
-          <div className="w-80 space-y-6">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center text-lg">
+        {/* Sidebar and Content */}
+        <SidebarProvider>
+          <div className="flex w-full min-h-[calc(100vh-8rem)]">
+          {/* Sidebar */}
+          <Sidebar className="fixed top-[60px] left-0 h-full">
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupLabel className="flex items-center justify-between">
+                  <div className="flex items-center">
                     <SlidersHorizontal className="w-5 h-5 mr-2" />
                     Filters
-                  </CardTitle>
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={resetFilters}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-auto p-1"
                   >
                     Reset
                   </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Search */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Search Services</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                </SidebarGroupLabel>
+                <SidebarGroupContent className="space-y-6 p-4">
+                  {/* Search */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Search Services</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        placeholder="Search by name or description..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Location Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center">
+                      <MapPin className="w-4 h-4 mr-1" />
+                      Location
+                    </label>
                     <Input
-                      placeholder="Search by name or description..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
+                      placeholder="Enter city, area, or pincode..."
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
                     />
                   </div>
-                </div>
 
-                <Separator />
+                  <Separator />
 
-                {/* Location Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    Location
-                  </label>
-                  <Input
-                    placeholder="Enter city, area, or pincode..."
-                    value={locationFilter}
-                    onChange={(e) => setLocationFilter(e.target.value)}
-                  />
-                </div>
-
-                <Separator />
-
-                {/* Price Range */}
-                <div className="space-y-3">
-                  <label className="text-sm font-medium text-gray-700 flex items-center">
-                    <DollarSign className="w-4 h-4 mr-1" />
-                    Price Range (per hour)
-                  </label>
-                  <div className="px-2">
-                    <Slider
-                      value={priceRange}
-                      onValueChange={setPriceRange}
-                      max={1000}
-                      step={10}
-                      className="w-full"
-                    />
+                  {/* Price Range */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-gray-700 flex items-center">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      Price Range (per hour)
+                    </label>
+                    <div className="px-2">
+                      <Slider
+                        value={priceRange}
+                        onValueChange={setPriceRange}
+                        max={1000}
+                        step={10}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>${priceRange[0]}</span>
+                      <span>${priceRange[1]}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>${priceRange[0]}</span>
-                    <span>${priceRange[1]}</span>
+
+                  <Separator />
+
+                  {/* Rating Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center">
+                      <Star className="w-4 h-4 mr-1" />
+                      Minimum Rating
+                    </label>
+                    <Select value={ratingFilter.toString()} onValueChange={(value) => setRatingFilter(Number(value))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any rating" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Any rating</SelectItem>
+                        <SelectItem value="4">4+ Stars</SelectItem>
+                        <SelectItem value="4.5">4.5+ Stars</SelectItem>
+                        <SelectItem value="4.8">4.8+ Stars</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
 
-                <Separator />
+                  <Separator />
 
-                {/* Rating Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center">
-                    <Star className="w-4 h-4 mr-1" />
-                    Minimum Rating
-                  </label>
-                  <Select value={ratingFilter.toString()} onValueChange={(value) => setRatingFilter(Number(value))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any rating" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Any rating</SelectItem>
-                      <SelectItem value="4">4+ Stars</SelectItem>
-                      <SelectItem value="4.5">4.5+ Stars</SelectItem>
-                      <SelectItem value="4.8">4.8+ Stars</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  {/* Availability */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700 flex items-center">
+                      <Clock className="w-4 h-4 mr-1" />
+                      Availability
+                    </label>
+                    <Select value={availabilityFilter || "any"} onValueChange={(value) => setAvailabilityFilter(value === "any" ? "" : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any time</SelectItem>
+                        <SelectItem value="today">Available today</SelectItem>
+                        <SelectItem value="week">This week</SelectItem>
+                        <SelectItem value="weekend">Weekends</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
 
-                <Separator />
+          {/* Main Content */}
+          <SidebarInset className="overflow-hidden">
+            <div className="flex-1 px-2 sm:px-6 lg:px-8 py-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
+            {/* Category Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                {category?.category?.name || category?.name || `Category ${categoryId}`}
+              </h1>
+              <p className="text-lg text-gray-600 mb-4">
+                {category?.category?.description || category?.description || 'Discover amazing services in this category'}
+              </p>
+              <div className="flex items-center space-x-6 text-sm text-gray-500">
+                <span className="flex items-center">
+                  <Package className="w-4 h-4 mr-1" />
+                  {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''} available
+                </span>
+                <span className="flex items-center">
+                  <Users className="w-4 h-4 mr-1" />
+                  {services.length > 0 ? `${Math.floor(services.length * 1.5)}+ providers` : 'No providers yet'}
+                </span>
+              </div>
+            </div>
 
-                {/* Availability */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    Availability
-                  </label>
-                  <Select value={availabilityFilter || "any"} onValueChange={(value) => setAvailabilityFilter(value === "any" ? "" : value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any time</SelectItem>
-                      <SelectItem value="today">Available today</SelectItem>
-                      <SelectItem value="week">This week</SelectItem>
-                      <SelectItem value="weekend">Weekends</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Content - Services Grid */}
-          <div className="flex-1">
+            {/* Services Grid */}
             {/* Sort and Results Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 space-y-4 sm:space-y-0">
               <div className="text-sm text-gray-600">
@@ -420,47 +523,43 @@ export default function CategoryPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredServices.map((service, index) => (
-                  <Card 
-                    key={service.id} 
-                    className="hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer border-0 shadow-md overflow-hidden bg-gradient-to-br from-white to-gray-50/50"
-                  >
-                    <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-purple-50 group-hover:from-blue-100 group-hover:to-purple-100 transition-all duration-300">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-10 h-10 ring-2 ring-white shadow-md group-hover:scale-110 transition-transform duration-300">
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
-                            {service.name?.charAt(0).toUpperCase() || "S"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <CardTitle className="text-lg group-hover:text-blue-600 transition-colors">
-                            {service.name}
-                          </CardTitle>
-                          <div className="flex items-center space-x-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`w-3 h-3 ${i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                              />
-                            ))}
-                            <span className="text-sm text-gray-600 ml-1">4.8 (127)</span>
-                          </div>
+                <Card 
+                  key={service.id} 
+                  className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className="bg-blue-600 text-white font-bold">
+                          {service.name?.charAt(0).toUpperCase() || "S"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">
+                          {service.name}
+                        </CardTitle>
+                        <div className="flex items-center space-x-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star 
+                              key={i} 
+                              className={`w-3 h-3 ${i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                            />
+                          ))}
+                          <span className="text-sm text-muted-foreground ml-1">4.8 (127)</span>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/50"
-                        >
-                          <Heart className="w-4 h-4" />
-                        </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <CardDescription className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      <Button variant="ghost" size="icon">
+                        <Heart className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                    <CardContent>
+                      <CardDescription className="mb-4 line-clamp-2">
                         {service.description || "Professional service provider with years of experience."}
                       </CardDescription>
                       
                       {service.address && (
-                        <div className="flex items-center text-sm text-gray-500 mb-3">
+                        <div className="flex items-center text-sm text-muted-foreground mb-3">
                           <MapPin className="w-4 h-4 mr-1" />
                           <span className="truncate">{service.address}</span>
                         </div>
@@ -468,26 +567,22 @@ export default function CategoryPage() {
                       
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex flex-col">
-                          <span className="text-2xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
+                          <span className="text-2xl font-bold text-green-600">
                             ${service.price || "50"}
                           </span>
-                          <span className="text-xs text-gray-500">per hour</span>
+                          <span className="text-xs text-muted-foreground">per hour</span>
                         </div>
                         <div className="flex flex-col items-end">
-                          <span className="text-xs text-gray-500">Available</span>
+                          <span className="text-xs text-muted-foreground">Available</span>
                           <span className="text-sm font-medium text-green-600">Today</span>
                         </div>
                       </div>
                       
                       <div className="flex space-x-2">
-                        <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                        <Button className="flex-1">
                           Book Now
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          className="hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                        >
+                        <Button variant="outline" size="icon">
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </div>
@@ -496,8 +591,10 @@ export default function CategoryPage() {
                 ))}
               </div>
             )}
+            </div>
+          </SidebarInset>
           </div>
-        </div>
+        </SidebarProvider>
       </div>
     </div>
   );
