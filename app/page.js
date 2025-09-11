@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Navbar from "@/components/custom/Navbar";
 import { 
+  Heart,
   Search, 
   Book, 
   Code, 
@@ -19,7 +21,8 @@ import {
   ArrowRight,
   Menu,
   GraduationCap,
-  Package
+  Package,
+  IndianRupee
 } from "lucide-react";
 
 export default function HomePage() {
@@ -300,10 +303,10 @@ export default function HomePage() {
               {featuredServices.map((service, index) => (
                 <Card 
                   key={service.id} 
-                  className="hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer border-0 shadow-md overflow-hidden bg-gradient-to-br from-white to-gray-50/50"
+                  className="hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer border border-gray-100 shadow-md overflow-hidden bg-white rounded-2xl p-0 gap-0"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <CardHeader className="pb-3 bg-gradient-to-r from-blue-50 to-purple-50 group-hover:from-blue-100 group-hover:to-purple-100 transition-all duration-300">
+                  <CardHeader className="py-3 bg-gradient-to-r from-blue-50 to-purple-50 group-hover:from-blue-100 group-hover:to-purple-100 transition-all duration-300">
                     <div className="flex items-center space-x-3">
                       <Avatar className="w-10 h-10 ring-2 ring-white shadow-md group-hover:scale-110 transition-transform duration-300">
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
@@ -323,41 +326,34 @@ export default function HomePage() {
                           <span className="text-sm text-gray-600 ml-1">4.8 (127)</span>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/50"
-                      >
-                        <Heart className="w-4 h-4" />
-                      </Button>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4">
+                  <CardContent className="p-5">
                     <CardDescription className="text-sm text-gray-600 mb-4 line-clamp-2">
                       {service.description || "Professional service provider with years of experience helping students achieve their goals."}
                     </CardDescription>
                     
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex flex-col">
+                    <div className="flex items-center justify-between mb-5">
+                      <div className="flex items-baseline gap-1">
+                        <IndianRupee className="w-5 h-5 text-green-600" />
                         <span className="text-2xl font-bold text-green-600 group-hover:text-green-700 transition-colors">
-                          ${service.price || "50"}
+                          {service.price || "50"}
                         </span>
-                        <span className="text-xs text-gray-500">per hour</span>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs text-gray-500">Starting from</span>
-                        <span className="text-sm font-medium text-gray-700">Next available</span>
+                      <div className="text-right">
+                        <span className="block text-xs text-gray-500">Starting from</span>
+                        <span className="block text-sm font-medium text-gray-700">Next available</span>
                       </div>
                     </div>
                     
                     <div className="flex space-x-2">
-                      <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                      <Button className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl">
                         Book Now
                       </Button>
                       <Button 
                         variant="outline" 
                         size="icon"
-                        className="hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                        className="hover:bg-blue-50 hover:border-blue-300 transition-colors rounded-xl"
                       >
                         <ArrowRight className="w-4 h-4" />
                       </Button>

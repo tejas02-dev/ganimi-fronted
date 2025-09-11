@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/custom/Navbar";
+import CreateServiceDialog from "@/components/custom/CreateServiceDialog";
+import ServicesList from "@/components/custom/ServicesList";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
   User,
   Settings,
@@ -65,7 +68,7 @@ export default function DashboardPage() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch("http://localhost:5500/api/v1/auth/me", {
+      const response = await fetch("http://localhost:5500/api/v1/auth/user", {
         credentials: "include",
       });
       if (response.ok) {
@@ -142,7 +145,7 @@ export default function DashboardPage() {
   ];
 
   const StudentDashboard = () => (
-    <div className="flex gap-6">
+    <div className="flex gap-6 h-full">
       {/* Left Sidebar */}
       <div className="w-64 flex-shrink-0 border-r border-gray-200 pr-6">
         <div className="space-y-2">
@@ -170,14 +173,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Right Content */}
-      <div className="flex-1 pl-6">
+      <div className="flex-1 pl-6 min-h-0">
         {renderStudentContent()}
       </div>
     </div>
   );
 
   const VendorDashboard = () => (
-    <div className="flex gap-6">
+    <div className="flex gap-6 h-full">
       {/* Left Sidebar */}
       <div className="w-64 flex-shrink-0 border-r border-gray-200 pr-6">
         <div className="space-y-2">
@@ -205,7 +208,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Right Content */}
-      <div className="flex-1 pl-6">
+      <div className="flex-1 pl-6 min-h-0">
         {renderVendorContent()}
       </div>
     </div>
@@ -250,13 +253,13 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <Navbar showSearch={false} />
       
-      <div className="pt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="max-w-none mx-[350px] px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 flex-shrink-0">
             <div className="flex items-center space-x-4 mb-6">
               <Avatar className="w-16 h-16 ring-4 ring-blue-100">
                 <AvatarImage src={user.avatar} />
@@ -293,7 +296,9 @@ export default function DashboardPage() {
           </div>
 
           {/* Dashboard Content */}
-          {user.role === 'student' ? <StudentDashboard /> : <VendorDashboard />}
+          <div className="flex-1 overflow-hidden">
+            {user.role === 'student' ? <StudentDashboard /> : <VendorDashboard />}
+          </div>
         </div>
       </div>
     </div>
@@ -498,38 +503,47 @@ function VendorOverview({ stats }) {
   );
 }
 
-function ServicesSection() {
+function ServicesSection({ onRefresh }) {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleServiceCreated = () => {
+    // Refresh services list
+    setRefreshTrigger(prev => prev + 1);
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full">
+      {/* Fixed Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">My Services</h2>
           <p className="text-gray-600">Manage your service offerings</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Service
-        </Button>
+        <CreateServiceDialog onServiceCreated={handleServiceCreated} />
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Service List</CardTitle>
-          <CardDescription>All your published services</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-gray-500">
-            <Package className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No services created yet</p>
-            <p className="text-sm">Create your first service to start receiving bookings</p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Scrollable Services List */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
+          <ServicesList refreshTrigger={refreshTrigger} />
+        </div>
+      </div>
     </div>
   );
 }
 
 function CreateServiceSection() {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleServiceCreated = () => {
+    // Service created successfully, trigger refresh
+    setRefreshTrigger(prev => prev + 1);
+    toast.success("Service created successfully! You can now view it in the My Services section.");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -540,13 +554,16 @@ function CreateServiceSection() {
       <Card>
         <CardHeader>
           <CardTitle>Service Details</CardTitle>
-          <CardDescription>Fill in the details for your new service</CardDescription>
+          <CardDescription>Use the button below to create a new service</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-12 text-gray-500">
-            <Plus className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">Service creation form coming soon</p>
-            <p className="text-sm">This feature will be available in the next update</p>
+          <div className="text-center py-12">
+            <div className="bg-blue-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Plus className="w-12 h-12 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to add a new service?</h3>
+            <p className="text-gray-600 mb-6">Create a professional service listing to attract customers</p>
+            <CreateServiceDialog onServiceCreated={handleServiceCreated} />
           </div>
         </CardContent>
       </Card>
