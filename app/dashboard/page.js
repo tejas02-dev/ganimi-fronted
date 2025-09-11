@@ -1,0 +1,573 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Navbar from "@/components/custom/Navbar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  User,
+  Settings,
+  Package,
+  Calendar,
+  CreditCard,
+  Heart,
+  Plus,
+  Edit,
+  Eye,
+  MapPin,
+  Phone,
+  Mail,
+  Star,
+  DollarSign,
+  Users,
+  Clock,
+  TrendingUp
+} from "lucide-react";
+
+export default function DashboardPage() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({});
+  const router = useRouter();
+
+  useEffect(() => {
+    checkAuthAndFetchData();
+  }, []);
+
+  const checkAuthAndFetchData = async () => {
+    try {
+      // Check if user is logged in
+      const userData = localStorage.getItem("user");
+      if (!userData) {
+        router.push("/login");
+        return;
+      }
+
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+
+      // Fetch user profile and stats
+      await Promise.all([
+        fetchUserProfile(),
+        fetchUserStats(parsedUser.role)
+      ]);
+    } catch (error) {
+      console.error("Error loading dashboard:", error);
+      router.push("/login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await fetch("http://localhost:5500/api/v1/auth/me", {
+        credentials: "include",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(prev => ({ ...prev, ...data.user }));
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
+
+  const fetchUserStats = async (role) => {
+    try {
+      const endpoint = role === "vendor" 
+        ? "http://localhost:5500/api/v1/vendor/stats"
+        : "http://localhost:5500/api/v1/student/stats";
+      
+      const response = await fetch(endpoint, {
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data.stats || {});
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar showSearch={false} />
+        <div className="pt-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="animate-pulse space-y-6">
+              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+              <div className="h-64 bg-gray-200 rounded"></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-32 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const StudentDashboard = () => (
+    <div className="space-y-6">
+      {/* Student Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Orders</CardTitle>
+            <Package className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeOrders || 0}</div>
+            <p className="text-xs text-muted-foreground">Currently active</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <Calendar className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalBookings || 0}</div>
+            <p className="text-xs text-muted-foreground">All time bookings</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Categories Accessed</CardTitle>
+            <Heart className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.accessedCategories || 0}</div>
+            <p className="text-xs text-muted-foreground">Categories unlocked</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
+            <DollarSign className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats.totalSpent || 0}</div>
+            <p className="text-xs text-muted-foreground">Lifetime spending</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common tasks and shortcuts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/orders')}
+            >
+              <Package className="h-6 w-6" />
+              <span className="text-sm">My Orders</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/bookings')}
+            >
+              <Calendar className="h-6 w-6" />
+              <span className="text-sm">My Bookings</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/billing')}
+            >
+              <CreditCard className="h-6 w-6" />
+              <span className="text-sm">Billing</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/favorites')}
+            >
+              <Heart className="h-6 w-6" />
+              <span className="text-sm">Favorites</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const VendorDashboard = () => (
+    <div className="space-y-6">
+      {/* Vendor Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Services</CardTitle>
+            <Package className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalServices || 0}</div>
+            <p className="text-xs text-muted-foreground">Services created</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Bookings</CardTitle>
+            <Calendar className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeBookings || 0}</div>
+            <p className="text-xs text-muted-foreground">Current bookings</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+            <DollarSign className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats.totalEarnings || 0}</div>
+            <p className="text-xs text-muted-foreground">All time earnings</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg. Rating</CardTitle>
+            <Star className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.averageRating || "0.0"}</div>
+            <p className="text-xs text-muted-foreground">Customer rating</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Manage your services and bookings</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/vendor/services/create')}
+            >
+              <Plus className="h-6 w-6" />
+              <span className="text-sm">Create Service</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/vendor/services')}
+            >
+              <Eye className="h-6 w-6" />
+              <span className="text-sm">My Services</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/vendor/bookings')}
+            >
+              <Calendar className="h-6 w-6" />
+              <span className="text-sm">Bookings</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+              onClick={() => router.push('/vendor/analytics')}
+            >
+              <TrendingUp className="h-6 w-6" />
+              <span className="text-sm">Analytics</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar showSearch={false} />
+      
+      <div className="pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center space-x-4 mb-6">
+              <Avatar className="w-16 h-16 ring-4 ring-blue-100">
+                <AvatarImage src={user.avatar} />
+                <AvatarFallback className="bg-blue-600 text-white text-xl font-semibold">
+                  {user.name?.charAt(0).toUpperCase() }
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Welcome back, {user.email || "User"}!
+                </h1>
+                <div className="flex items-center space-x-3 mt-2">
+                  <Badge 
+                    variant={user.role === 'vendor' ? 'default' : 'secondary'}
+                    className="capitalize"
+                  >
+                    {user.role}
+                  </Badge>
+                  {user.email && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Mail className="w-4 h-4 mr-1" />
+                      {user.email}
+                    </div>
+                  )}
+                  {user.phone && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Phone className="w-4 h-4 mr-1" />
+                      {user.phone}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dashboard Content */}
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:grid-cols-3">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="profile">Profile Settings</TabsTrigger>
+              {user.role === 'vendor' && (
+                <TabsTrigger value="business">Business</TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              {user.role === 'student' ? <StudentDashboard /> : <VendorDashboard />}
+            </TabsContent>
+
+            <TabsContent value="profile">
+              <ProfileSettings user={user} onUpdate={setUser} />
+            </TabsContent>
+
+            {user.role === 'vendor' && (
+              <TabsContent value="business">
+                <BusinessSettings user={user} stats={stats} />
+              </TabsContent>
+            )}
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Profile Settings Component
+function ProfileSettings({ user, onUpdate }) {
+  const [formData, setFormData] = useState({
+    name: user.name || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    address: user.address || "",
+    pincode: user.pincode || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("http://localhost:5500/api/v1/auth/update", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        onUpdate(prev => ({ ...prev, ...formData }));
+        
+        // Update localStorage
+        const userData = localStorage.getItem("user");
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          localStorage.setItem("user", JSON.stringify({ ...parsedUser, ...formData }));
+        }
+        
+        setMessage("Profile updated successfully!");
+      } else {
+        const errorData = await response.json();
+        setMessage(errorData.message || "Failed to update profile");
+      }
+    } catch (error) {
+      setMessage("An error occurred while updating profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Settings className="w-5 h-5 mr-2" />
+          Profile Settings
+        </CardTitle>
+        <CardDescription>
+          Update your personal information and contact details
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Full Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone Number</label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your phone number"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Pincode</label>
+              <input
+                type="text"
+                value={formData.pincode}
+                onChange={(e) => setFormData(prev => ({ ...prev, pincode: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your pincode"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Address</label>
+            <textarea
+              value={formData.address}
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Enter your full address"
+            />
+          </div>
+
+          {message && (
+            <div className={`p-3 rounded-md text-sm ${
+              message.includes('successfully') 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {message}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Updating..." : "Update Profile"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Business Settings Component (for vendors)
+function BusinessSettings({ user, stats }) {
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Business Overview</CardTitle>
+          <CardDescription>Your business performance and metrics</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{stats.totalServices || 0}</div>
+              <div className="text-sm text-gray-600">Total Services</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{stats.totalBookings || 0}</div>
+              <div className="text-sm text-gray-600">Total Bookings</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">${stats.totalEarnings || 0}</div>
+              <div className="text-sm text-gray-600">Total Earnings</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>Your latest business activities</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Recent activity will appear here</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
