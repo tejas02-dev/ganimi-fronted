@@ -156,7 +156,7 @@ export default function ServicesList({ refreshTrigger }) {
       <div className="space-y-4">
         {services.map((service) => (
           <Card key={service.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className="">
               <div className="flex items-start justify-between">
                 <div className="flex-1 space-y-3">
                   <div className="flex items-start justify-between">

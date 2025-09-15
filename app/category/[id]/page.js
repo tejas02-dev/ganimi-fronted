@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Breadcrumb,
   BreadcrumbList,
@@ -50,6 +51,7 @@ import {
   ChevronLeft,
   Package,
   DollarSign,
+  IndianRupee,
   Clock,
   Users
 } from "lucide-react";
@@ -69,7 +71,7 @@ export default function CategoryPage() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 100000]);
   const [ratingFilter, setRatingFilter] = useState(0);
   const [availabilityFilter, setAvailabilityFilter] = useState("");
   const [sortBy, setSortBy] = useState("relevance");
@@ -130,6 +132,9 @@ export default function CategoryPage() {
         }),
       ]);
 
+      console.log("Category response:", categoryResponse);
+      console.log("Services response:", servicesResponse);
+
       if (categoryResponse.ok) {
         const categoryData = await categoryResponse.json();
         console.log("Category data:", categoryData); // Debug log
@@ -149,7 +154,7 @@ export default function CategoryPage() {
       if (servicesResponse.ok) {
         const servicesData = await servicesResponse.json();
         console.log("Services data:", servicesData); // Debug log
-        setServices(Array.isArray(servicesData.data) ? servicesData.data : Array.isArray(servicesData.services) ? servicesData.services : []);
+        setServices(Array.isArray(servicesData.services) ? servicesData.services : []);
       } else {
         console.warn("Failed to fetch services:", servicesResponse.status);
         setServices([]);
@@ -162,9 +167,10 @@ export default function CategoryPage() {
     }
   };
 
+  console.log("Services:", services);
   const applyFilters = () => {
     let filtered = [...services];
-
+    console.log("Filtered:", filtered);
     // Search filter
     if (searchQuery) {
       filtered = filtered.filter(service =>
@@ -214,10 +220,12 @@ export default function CategoryPage() {
     setFilteredServices(filtered);
   };
 
+  console.log("Filtered Services:", filteredServices);
+
   const resetFilters = () => {
     setSearchQuery("");
     setLocationFilter("");
-    setPriceRange([0, 1000]);
+    setPriceRange([0, 100000]);
     setRatingFilter(0);
     setAvailabilityFilter("");
     setSortBy("relevance");
@@ -331,7 +339,7 @@ export default function CategoryPage() {
         <SidebarProvider>
           <div className="flex w-full min-h-[calc(100vh-8rem)]">
           {/* Sidebar */}
-          <Sidebar className="fixed top-[60px] left-0 h-full">
+          <Sidebar className="fixed top-[65px] left-0 h-full">
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupLabel className="flex items-center justify-between">
@@ -383,21 +391,21 @@ export default function CategoryPage() {
                   {/* Price Range */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium text-gray-700 flex items-center">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      Price Range (per hour)
+                      <IndianRupee className="w-4 h-4 mr-1" />
+                      Price Range
                     </label>
                     <div className="px-2">
                       <Slider
                         value={priceRange}
                         onValueChange={setPriceRange}
-                        max={1000}
+                        max={100000}
                         step={10}
                         className="w-full"
                       />
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
-                      <span>${priceRange[0]}</span>
-                      <span>${priceRange[1]}</span>
+                      <span className="flex items-center" ><IndianRupee className="w-4 h-4" />{priceRange[0]}</span>
+                      <span className="flex items-center" ><IndianRupee className="w-4 h-4" />{priceRange[1]}</span>
                     </div>
                   </div>
 
@@ -449,7 +457,7 @@ export default function CategoryPage() {
 
           {/* Main Content */}
           <SidebarInset className="overflow-hidden">
-            <div className="flex-1 px-2 sm:px-6 lg:px-8 py-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
+            <div className="flex-1 px-2 sm:px-6 lg:px-8 py-4 overflow-y-auto max-h-[calc(100vh-8rem)] w-full">
             {/* Category Header */}
             <div className="mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -567,8 +575,8 @@ export default function CategoryPage() {
                       
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex flex-col">
-                          <span className="text-2xl font-bold text-green-600">
-                            ${service.price || "50"}
+                          <span className="text-2xl font-bold text-green-600 flex items-center">
+                            <IndianRupee className="w-4 h-4" />{service.price || "50"}
                           </span>
                           <span className="text-xs text-muted-foreground">per hour</span>
                         </div>

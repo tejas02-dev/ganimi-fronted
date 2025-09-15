@@ -44,7 +44,7 @@ export default function LoginPage() {
       });
 
       const data = await response.json();
-
+      
       if (response.ok) {
         // Login successful
         localStorage.setItem("user", JSON.stringify(data.user));

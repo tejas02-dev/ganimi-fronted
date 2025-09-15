@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/custom/Navbar";
 import CreateServiceDialog from "@/components/custom/CreateServiceDialog";
 import ServicesList from "@/components/custom/ServicesList";
+import BookingsList from "@/components/custom/BookingsList";
+import OrdersList from "@/components/custom/OrdersList";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -332,6 +334,10 @@ function StudentOverview() {
 }
 
 function OrdersSection() {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const handleOrderCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -339,24 +345,16 @@ function OrdersSection() {
         <p className="text-gray-600">Track and manage your orders</p>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Order History</CardTitle>
-          <CardDescription>Your recent and past orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-gray-500">
-            <Package className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No orders found</p>
-            <p className="text-sm">Your orders will appear here once you make a purchase</p>
-          </div>
-        </CardContent>
-      </Card>
+      <OrdersList refreshTrigger={refreshTrigger} />
     </div>
   );
 }
 
 function BookingsSection() {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const handleBookingCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -364,19 +362,7 @@ function BookingsSection() {
         <p className="text-gray-600">View and manage your service bookings</p>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Bookings</CardTitle>
-          <CardDescription>Your scheduled services and appointments</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-gray-500">
-            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No bookings found</p>
-            <p className="text-sm">Your bookings will appear here when you schedule services</p>
-          </div>
-        </CardContent>
-      </Card>
+      <BookingsList refreshTrigger={refreshTrigger} />
     </div>
   );
 }
@@ -572,6 +558,10 @@ function CreateServiceSection() {
 }
 
 function VendorBookingsSection() {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const handleBookingCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -579,19 +569,8 @@ function VendorBookingsSection() {
         <p className="text-gray-600">Manage your customer bookings and appointments</p>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Bookings</CardTitle>
-          <CardDescription>Customer appointments and scheduled services</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-gray-500">
-            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">No bookings yet</p>
-            <p className="text-sm">Customer bookings will appear here</p>
-          </div>
-        </CardContent>
-      </Card>
+        <BookingsList refreshTrigger={refreshTrigger} />
+      
     </div>
   );
 }
@@ -651,14 +630,7 @@ function ProfileSettings({ user, onUpdate }) {
       if (response.ok) {
         const data = await response.json();
         onUpdate(prev => ({ ...prev, ...formData }));
-        
-        // Update localStorage
-        const userData = localStorage.getItem("user");
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          localStorage.setItem("user", JSON.stringify({ ...parsedUser, ...formData }));
-        }
-        
+        toast.success("Profile updated successfully!");
         setMessage("Profile updated successfully!");
       } else {
         const errorData = await response.json();
