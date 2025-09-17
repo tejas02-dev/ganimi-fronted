@@ -53,8 +53,10 @@ import {
   DollarSign,
   IndianRupee,
   Clock,
-  Users
+  Users,
+  ShoppingCart
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function CategoryPage() {
   const params = useParams();
@@ -80,6 +82,93 @@ export default function CategoryPage() {
     checkAccess();
   }, [categoryId]);
 
+  const loadScript = (src) => {
+    return new Promise((resolve) => {
+      // Validate script source
+      if (!src || typeof src !== 'string') {
+        resolve(false);
+        return;
+      }
+      
+      // Only allow HTTPS and trusted domains
+      if (!src.startsWith('https://checkout.razorpay.com/')) {
+        console.error('Invalid script source:', src);
+        resolve(false);
+        return;
+      }
+      
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = () => resolve(true);
+      script.onerror = () => {
+        console.error('Failed to load script:', src);
+        resolve(false);
+      };
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePurchaseCategory = async () => {
+    try {
+      const response = await fetch(`http://localhost:5500/api/v1/orders/category/${categoryId}`, {
+        credentials: "include",
+        method: "POST",
+      });
+      const data = await response.json();
+      
+      if (data.status === "error") {
+        toast.error(data.message);
+        return;
+      }
+
+      const loaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+
+      if (!loaded) {
+        toast.error("Failed to load Razorpay script");
+        return;
+      }
+
+      const options = {
+        key: data.key,
+        amount: data.amount,
+        currency: "INR",
+        name: "Ganimi - Category Access",
+        description: `Purchase access to ${category?.name || 'this category'}`,
+        order_id: data.orderId,
+        callback_url: "http://localhost:5500/api/v1/payments/callback",
+        theme: { color: "#3399cc" },
+        handler: function (response) {
+          console.log(response);
+          fetch(`http://localhost:5500/api/v1/payments/verify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          }).then((res) => res.json()).then((data) => {
+            if (data.status === "ok") {
+              toast.success("Payment successful! You now have access to this category.");
+              // Refresh the page to show the category content
+              window.location.reload();
+            } else {
+              toast.error(data.message);
+            }
+          });
+        }
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.open();
+    } catch (error) {
+      console.error("Error purchasing category:", error);
+      toast.error("Failed to initiate payment. Please try again.");
+    }
+  };
+
   const checkAccess = async () => {
     try {
       const response = await fetch(`http://localhost:5500/api/v1/student/category/${categoryId}`, {
@@ -94,13 +183,15 @@ export default function CategoryPage() {
           // If user has access, fetch category data
           fetchCategoryData();
         } else {
-          // If no access, show dialog
+          // If no access, fetch basic category info and show dialog
+          fetchBasicCategoryInfo();
           setShowAccessDialog(true);
           setLoading(false);
         }
       } else {
         // If API call fails, assume no access for security
         setHasAccess(false);
+        fetchBasicCategoryInfo();
         setShowAccessDialog(true);
         setLoading(false);
       }
@@ -108,8 +199,24 @@ export default function CategoryPage() {
       console.error("Error checking access:", error);
       // If error occurs, assume no access for security
       setHasAccess(false);
+      fetchBasicCategoryInfo();
       setShowAccessDialog(true);
       setLoading(false);
+    }
+  };
+
+  const fetchBasicCategoryInfo = async () => {
+    try {
+      const response = await fetch(`http://localhost:5500/api/v1/categories/${categoryId}`, {
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCategory(data);
+      }
+    } catch (error) {
+      console.error("Error fetching basic category info:", error);
     }
   };
 
@@ -273,52 +380,66 @@ export default function CategoryPage() {
         />
         
         <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] px-4">
-          <div className="text-center max-w-md">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Package className="w-10 h-10 text-red-600" />
+          <div className="text-center max-w-lg">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Package className="w-12 h-12 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-            <p className="text-gray-600 mb-6">
-              You don't have access to this category. Please purchase access to view the services in this category.
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              {category?.name ? `${category.name} Category` : 'Category Access Required'}
+            </h1>
+            <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+              You need to purchase access to view the services in this category. 
+              {category?.description && (
+                <span className="block mt-2 text-sm text-gray-500">
+                  {category.description}
+                </span>
+              )}
             </p>
+            {category?.price && (
+              <div className="mb-4">
+                <span className="text-lg font-semibold text-blue-700">
+                  Price: ₹{category.price}
+                </span>
+              </div>
+            )}
+            
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <ShoppingCart className="w-8 h-8 text-blue-600 mr-3" />
+                <div className="text-left">
+                  <h3 className="font-semibold text-gray-900">Get Full Access</h3>
+                  <p className="text-sm text-gray-600">Unlock all services in this category</p>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={handlePurchaseCategory}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                size="lg"
+              >
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                Purchase Category Access
+              </Button>
+            </div>
+            
             <div className="space-y-3">
               <Button 
+                variant="outline" 
                 onClick={() => router.push('/')}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full"
               >
-                Go to Home
+                Explore Other Categories
               </Button>
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 onClick={() => router.back()}
-                className="w-full"
+                className="w-full text-gray-500 hover:text-gray-700"
               >
                 Go Back
               </Button>
             </div>
           </div>
         </div>
-
-        {/* Access Dialog */}
-        <AlertDialog open={showAccessDialog} onOpenChange={setShowAccessDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Access Required</AlertDialogTitle>
-              <AlertDialogDescription>
-                You need to purchase access to this category to view its services. 
-                Would you like to explore other categories or go back to the home page?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => router.back()}>
-                Go Back
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={() => router.push('/')}>
-                Explore Categories
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     );
   }

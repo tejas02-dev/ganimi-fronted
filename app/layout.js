@@ -31,7 +31,6 @@ export default function RootLayout({ children }) {
         style={{ fontFamily: '"Wix Madefor Display", system-ui, sans-serif' }}
       >
         {children}
-        <Toaster />
       </body>
     </html>
   );

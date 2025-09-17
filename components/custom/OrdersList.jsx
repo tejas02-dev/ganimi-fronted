@@ -87,7 +87,7 @@ export default function OrdersList({ refreshTrigger }) {
     }
     
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-300px)] md:max-h-[600px] custom-scrollbar pr-2 scroll-smooth">
             {orders.map((order) => (
                 <Card key={order.orderId} className="hover:shadow-lg transition-shadow">
                     <CardContent className="">
