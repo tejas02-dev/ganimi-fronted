@@ -24,7 +24,7 @@ import {
   Package,
   IndianRupee
 } from "lucide-react";
-import { toast } from "sonner";
+import { initiateServicePayment } from "@/lib/razorpay";
 
 export default function HomePage() {
   const [categories, setCategories] = useState([]);
@@ -82,85 +82,37 @@ export default function HomePage() {
     }
   };
 
-  const loadScript = (src) => {
-    return new Promise((resolve) => {
-      // Validate script source
-      if (!src || typeof src !== 'string') {
-        resolve(false);
-        return;
-      }
-      
-      // Only allow HTTPS and trusted domains
-      if (!src.startsWith('https://checkout.razorpay.com/')) {
-        console.error('Invalid script source:', src);
-        resolve(false);
-        return;
-      }
-      
-      const script = document.createElement("script");
-      script.src = src;
-      script.onload = () => resolve(true);
-      script.onerror = () => {
-        console.error('Failed to load script:', src);
-        resolve(false);
-      };
-      document.body.appendChild(script);
-    });
-  }
-
   const handleBookNow = async (serviceId, serviceName) => {
-    const response = await fetch(`http://localhost:5500/api/v1/orders/service/${serviceId}`, {
-      credentials: "include",
-      method: "POST",
-    });
-    const data = await response.json();
-    if (data.status === "error") {
-      toast.error(data.message);
-      return;
-    }
-
-    const loaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
-
-    if(!loaded) {
-      toast.error("Failed to load Razorpay script");
-      return;
-    }
-
-    const options = {
-      key: data.key,
-      amount: data.amount,
-      currency: "INR",
-      name: "Ganimi" + " - " + serviceName,
-      description: "Payment for " + serviceName,
-      order_id: data.orderId,
-      callback_url: "http://localhost:5500/api/v1/payments/callback",
-      theme: { color: "#3399cc" },
-      handler: function (response) {
-        console.log(response);
-        fetch(`http://localhost:5500/api/v1/payments/verify`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          }),
-        }).then((res)=>res.json()).then((data)=>{
-          if(data.status === "ok") {
-            toast.success("Payment successful");
-          }
-          else {
-            toast.error(data.message);
-          }
-        })
-        
+    try {
+      // Make API call to create order
+      const response = await fetch(`http://localhost:5500/api/v1/orders/service/${serviceId}`, {
+        credentials: "include",
+        method: "POST",
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === "error") {
+        toast.error(data.message);
+        return;
       }
-    };
 
-    const rzp1 = new window.Razorpay(options);
-    rzp1.open();
+      // Use utility function with payment data
+      await initiateServicePayment(data, serviceName, {
+        successMessage: "Booking successful! Your service has been booked.",
+        onSuccess: (data, response) => {
+          console.log("Payment completed successfully:", data);
+          // You can add additional logic here like redirecting to a success page
+        },
+        onError: (error) => {
+          console.error("Payment failed:", error);
+          // You can add additional error handling here
+        }
+      });
+    } catch (error) {
+      console.error("Error creating order:", error);
+      toast.error("Failed to initiate payment");
+    }
   };
 
   const handleCategoryClick = (categoryId) => {

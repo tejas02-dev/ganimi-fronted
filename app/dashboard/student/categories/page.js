@@ -5,8 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { initiateCategoryPayment } from "@/lib/razorpay";
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -25,7 +27,6 @@ export default function Categories() {
                 const buttonRect = originalButtonPositionRef.current.getBoundingClientRect();
                 const windowHeight = window.innerHeight;
                 
-                // If the original button position is visible on screen, make it static
                 if (buttonRect.top <= windowHeight - 100) {
                     setIsButtonFloating(false);
                 } else {
@@ -39,7 +40,6 @@ export default function Categories() {
     }, [selectedCategories.length]);
 
     useEffect(() => {
-        // Reset floating state when categories change
         if (selectedCategories.length === 0) {
             setIsButtonFloating(true);
         }
@@ -50,7 +50,6 @@ export default function Categories() {
             await fetch("http://localhost:5500/api/v1/student/categories", {
                 credentials: "include",
             }).then(res => res.json()).then(data => {
-                // Sort categories: subscribed (access !== null) first, then unsubscribed
                 const sortedCategories = data.data.sort((a, b) => {
                     if (a.access !== null && b.access === null) return -1; // a has access, comes first
                     if (a.access === null && b.access !== null) return 1;  // b has access, comes first
@@ -63,11 +62,11 @@ export default function Categories() {
         }
     }
 
-    const handleCategorySelect = (categoryId, isChecked) => {
+    const handleCategorySelect = (categoryId, categoryPrice, isChecked) => {
         if (isChecked) {
-            setSelectedCategories(prev => [...prev, categoryId]);
+            setSelectedCategories(prev => [...prev, {categoryId: categoryId, price: categoryPrice}]);
         } else {
-            setSelectedCategories(prev => prev.filter(id => id !== categoryId));
+            setSelectedCategories(prev => prev.filter(item => item.categoryId !== categoryId));
         }
     };
 
@@ -76,30 +75,44 @@ export default function Categories() {
         const allAvailableIds = availableCategories.map(category => category.id);
         
         if (checked) {
-            // Select all available categories
             setSelectedCategories(prev => {
-                const newSelected = [...new Set([...prev, ...allAvailableIds])];
+                const newSelected = [...new Set([...prev, ...allAvailableIds.map(id => ({categoryId: id, price: categories.find(category => category.id === id).price}))])];
                 return newSelected;
             });
         } else {
-            // Deselect all available categories
             setSelectedCategories(prev => 
-                prev.filter(id => !allAvailableIds.includes(id))
+                prev.filter(item => !allAvailableIds.includes(item.categoryId))
             );
         }
     };
 
-    // Check if all available categories are selected
     const areAllAvailableSelected = () => {
         const availableCategories = categories.filter(category => category.access === null);
         const allAvailableIds = availableCategories.map(category => category.id);
-        return allAvailableIds.length > 0 && allAvailableIds.every(id => selectedCategories.includes(id));
+        return allAvailableIds.length > 0 && allAvailableIds.every(id => selectedCategories.some(item => item.categoryId === id));
     };
 
-    const handleIndividualSubscribe = async (categoryId) => {
+    const handleIndividualSubscribe = async (categoryId, categoryPrice) => {
         try {
-            // Add your individual subscription logic here
-            toast.success(`Subscribed to category successfully!`);
+              const response = await fetch('http://localhost:5500/api/v1/orders/category', {
+                credentials: "include",
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  orderItems: [{categoryId: categoryId, price: categoryPrice}],
+                })
+              }); 
+              
+              const data = await response.json();
+              await initiateCategoryPayment(data, {
+                successMessage: "Subscribed to category successfully!",
+                onSuccess: () => {
+                  toast.success(`Subscribed to category successfully!`);
+                  fetchData(); // Refresh the categories list to show updated access
+                },
+              });
         } catch (error) {
             toast.error("Failed to subscribe to category");
             console.error("Subscription error:", error);
@@ -124,21 +137,37 @@ export default function Categories() {
         }
         
         try {
-            // Add your bulk subscription logic here
-            toast.success(`Subscribed to ${selectedCategories.length} categories successfully!`);
+            const response = await fetch('http://localhost:5500/api/v1/orders/category', {
+              credentials: "include",
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                orderItems: selectedCategories,
+              })
+            }); 
+            
+            const data = await response.json();
+            await initiateCategoryPayment(data, {
+              successMessage: "Subscribed to categories successfully!",
+              onSuccess: () => {
+                toast.success(`Subscribed to categories successfully!`);
+                fetchData();
+              },
+            });
             setSelectedCategories([]);
-            fetchData(); // Refresh data
         } catch (error) {
-            toast.error("Failed to subscribe to categories");
+            toast.error("Failed to subscribe to categories!");
             console.error("Bulk subscription error:", error);
         }
     };
 
   return (
     <div className="p-10">
+      <Toaster />
       <h1 className="text-lg mb-4">Browse Categories</h1>
       
-      {/* Select All Checkbox */}
       <div className="mb-6">
         <div className="flex items-center space-x-2">
           <Checkbox
@@ -166,8 +195,8 @@ export default function Categories() {
                     <CardTitle className="flex items-center gap-3">
                       {category.access === null && (
                         <Checkbox
-                          checked={selectedCategories.includes(category.id)}
-                          onCheckedChange={(checked) => handleCategorySelect(category.id, checked)}
+                          checked={selectedCategories.some(item => item.categoryId === category.id)}
+                          onCheckedChange={(checked) => handleCategorySelect(category.id, category.price, checked)}
                           className="w-6 h-6"
                         />
                       )}
@@ -188,7 +217,7 @@ export default function Categories() {
                   {category.access === null && (
                     <Button 
                       type="button"
-                      onClick={() => handleIndividualSubscribe(category.id)}
+                      onClick={() => handleIndividualSubscribe(category.id, category.price)}
                       className="cursor-pointer hover:bg-primary/40"
                     >
                       Subscribe Now
@@ -208,7 +237,6 @@ export default function Categories() {
             ))}
         </div>
 
-        {/* Original Button Position (placeholder when floating) */}
         <div ref={originalButtonPositionRef} className="flex justify-center">
           {selectedCategories.length > 0 && !isButtonFloating && (
             <Button 
@@ -222,7 +250,6 @@ export default function Categories() {
         </div>
       </form>
 
-      {/* Floating Submit Button */}
       {selectedCategories.length > 0 && isButtonFloating && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
           <Button 

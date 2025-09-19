@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,13 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Lock, User, GraduationCap, Store, Shield } from "lucide-react";
 
 export default function SignupPage() {
+
+
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    category: "",
     password: "",
     confirmPassword: "",
     role: "",
@@ -23,6 +27,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [categories, setCategories] = useState([]);
   const router = useRouter();
 
   const roles = [
@@ -30,6 +35,8 @@ export default function SignupPage() {
     { value: "vendor", label: "Service Provider", icon: Store, description: "Offer your services to students" },
     { value: "super_admin", label: "Administrator", icon: Shield, description: "Manage the platform" },
   ];
+
+
 
   const handleInputChange = (e) => {
     setFormData({
@@ -46,6 +53,13 @@ export default function SignupPage() {
       role: value,
     });
     if (error) setError("");
+  };
+
+  const handleCategoryChange = (value) => {
+    setFormData({
+      ...formData,
+      category: value,
+    });
   };
 
   const validateForm = () => {
@@ -73,6 +87,10 @@ export default function SignupPage() {
       setError("Please select a role");
       return false;
     }
+    if (formData.role === "vendor" && !formData.category) {
+      setError("Please select a category");
+      return false;
+    }
     return true;
   };
 
@@ -96,6 +114,7 @@ export default function SignupPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          category: formData.category,
           password: formData.password,
           role: formData.role,
         }),
@@ -117,6 +136,31 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('http://localhost:5500/api/v1/categories');
+        const data = await response.json();
+        
+        // Handle different API response structures
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else if (data.data && Array.isArray(data.data)) {
+          setCategories(data.data);
+        } else if (data.categories && Array.isArray(data.categories)) {
+          setCategories(data.categories);
+        } else {
+          console.error('Unexpected API response structure:', data);
+          setCategories([]);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setCategories([]);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -193,20 +237,19 @@ export default function SignupPage() {
                 <label htmlFor="role" className="text-sm font-medium text-gray-700">
                   I am a
                 </label>
-                <Select onValueChange={handleRoleChange} value={formData.role}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
+                <Select onValueChange={handleRoleChange} value={formData.role} className="cursor-pointer w-[100%]">
+                  <SelectTrigger className="cursor-pointer w-[100%]">
+                    <SelectValue placeholder="Select your role" className="w-[100%]" /> 
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map((role) => {
                       const Icon = role.icon;
                       return (
-                        <SelectItem key={role.value} value={role.value}>
+                        <SelectItem key={role.value} value={role.value} className="cursor-pointer w-[100%]">
                           <div className="flex items-center space-x-2">
                             <Icon className="w-4 h-4" />
-                            <div>
+                            <div className="w-[100%]">
                               <div className="font-medium">{role.label}</div>
-                              <div className="text-xs text-gray-500">{role.description}</div>
                             </div>
                           </div>
                         </SelectItem>
@@ -215,6 +258,32 @@ export default function SignupPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+               {formData.role === "vendor" && (
+              <div className="space-y-2">
+                <label htmlFor="category" className="text-sm font-medium text-gray-700">
+                  Category
+                </label>
+                <Select onValueChange={handleCategoryChange} value={formData.category} className="cursor-pointer w-[100%]">
+                  <SelectTrigger className="cursor-pointer w-[100%]">
+                    <SelectValue placeholder="Select your category"  />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.isArray(categories) && categories.length > 0 ? (
+                      categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id} className="cursor-pointer w-[100%]">
+                          {category.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled className="cursor-pointer w-[100%]">
+                        No categories available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              )}
 
               <div className="space-y-2">
                 <label htmlFor="password" className="text-sm font-medium text-gray-700">

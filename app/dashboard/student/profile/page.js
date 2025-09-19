@@ -107,14 +107,14 @@ export default function StudentProfile() {
       console.error("Error fetching profile:", error);
     }
   };
-  
+
   const updateFormData = async () => {
     // Check if user data exists before trying to access properties
     if (!user) {
       console.log("User data not available yet");
       return;
     }
-    
+
     console.log(user);
     // Format date from database to YYYY-MM-DD string for DatePicker
     const formatDateForInput = (dateValue) => {
@@ -156,7 +156,7 @@ export default function StudentProfile() {
     });
 
   };
-  
+
   const UpdateProfileImage = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -168,7 +168,7 @@ export default function StudentProfile() {
       return;
     }
 
-    try{
+    try {
       const formData = new FormData();
       formData.append('profilePicture', profileImageFormData.profilePicture);
 
@@ -179,18 +179,18 @@ export default function StudentProfile() {
       });
 
       const data = await response.json();
-      
-      if(data.status === 'ok'){
+
+      if (data.status === 'ok') {
         toast.success(data.message || "Profile image updated successfully!");
         setProfileImageMessage("Profile image updated successfully!");
         // Update user state with new profile picture URL
         setUser(prev => ({ ...prev, profilePicture: data.profilePicture }));
-      }else{
+      } else {
         setProfileImageMessage(data.message || "Failed to update profile image");
       }
-    }catch(error){
+    } catch (error) {
       setProfileImageMessage("An error occurred while updating profile image");
-    }finally{
+    } finally {
       setLoading(false);
     }
   };
@@ -200,8 +200,8 @@ export default function StudentProfile() {
     setLoading(true);
     setProfileMessage("");
 
-    try{
-      const response = await fetch("http://localhost:5500/api/v1/auth/update", {
+    try {
+      const response = await fetch("http://localhost:5500/api/v1/auth/update-student-profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -209,18 +209,18 @@ export default function StudentProfile() {
         credentials: "include",
         body: JSON.stringify(profileFormData),
       });
-      if(response.status === 'ok'){
+      if (response.status === 'ok') {
         const data = await response.json();
         setUser(prev => ({ ...prev, ...profileFormData }));
         toast.success(data.message || "Profile updated successfully!");
         setProfileMessage("Profile updated successfully!");
-      }else{
+      } else {
         const errorData = await response.json();
         setProfileMessage(errorData.message || "Failed to update profile");
       }
-    }catch(error){
+    } catch (error) {
       setProfileMessage("An error occurred while updating profile");
-    }finally{
+    } finally {
       setLoading(false);
     }
   };
@@ -230,7 +230,7 @@ export default function StudentProfile() {
     setLoading(true);
     setParentMessage("");
 
-    try{
+    try {
       const response = await fetch("http://localhost:5500/api/v1/auth/update-guardian-profile", {
         method: "PUT",
         headers: {
@@ -239,18 +239,18 @@ export default function StudentProfile() {
         credentials: "include",
         body: JSON.stringify(parentFormData),
       });
-      if(response.status === 'ok'){
+      if (response.status === 'ok') {
         const data = await response.json();
         setUser(prev => ({ ...prev, ...parentFormData }));
         toast.success(data.message || "Parent updated successfully!");
         setParentMessage("Parent updated successfully!");
-      }else{
+      } else {
         const errorData = await response.json();
         setParentMessage(errorData.message || "Failed to update parent");
       }
-    }catch(error){
+    } catch (error) {
       setParentMessage("An error occurred while updating parent");
-    }finally{
+    } finally {
       setLoading(false);
     }
   };
@@ -260,7 +260,7 @@ export default function StudentProfile() {
     setLoading(true);
     setPasswordMessage("");
 
-    try{
+    try {
       const response = await fetch("http://localhost:5500/api/v1/auth/update-password", {
         method: "PUT",
         headers: {
@@ -269,17 +269,17 @@ export default function StudentProfile() {
         credentials: "include",
         body: JSON.stringify(passwordFormData),
       });
-      if(response.status === 'ok'){
+      if (response.status === 'ok') {
         const data = await response.json();
         toast.success(data.message || "Password updated successfully!");
         setPasswordMessage("Password updated successfully!");
-      }else{
+      } else {
         const errorData = await response.json();
         setPasswordMessage(errorData.message || "Failed to update password");
       }
-    }catch(error){
+    } catch (error) {
       setPasswordMessage("An error occurred while updating password");
-    }finally{
+    } finally {
       setLoading(false);
     }
   };
@@ -303,7 +303,7 @@ export default function StudentProfile() {
                 <div className="flex gap-4">
 
                   <label className="bg-primary px-4 py-1 cursor-pointer border rounded-lg bg-primary/10">
-                    <input  
+                    <input
                       type="file"
                       accept="image/*"
                       className="hidden"
@@ -415,7 +415,7 @@ export default function StudentProfile() {
                           const day = String(date.getDate()).padStart(2, '0');
                           const formattedDate = `${year}-${month}-${day}`;
                           console.log("Formatted date:", formattedDate);
-                          
+
                           setProfileFormData(prev => ({
                             ...prev,
                             dateOfBirth: formattedDate
@@ -537,6 +537,16 @@ export default function StudentProfile() {
                   </div>
 
                   <div className="space-y-2">
+                    <label className="text-sm font-medium">Mother's Email</label>
+                    <Input
+                      type="email"
+                      className="input input-bordered w-full"
+                      value={parentFormData.motherEmail}
+                      onChange={e => setParentFormData(prev => ({ ...prev, motherEmail: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-sm font-medium">Mother's Phone</label>
                     <Input
                       type="number"
@@ -544,16 +554,6 @@ export default function StudentProfile() {
                       style={{ MozAppearance: 'textfield' }}
                       value={parentFormData.motherPhone}
                       onChange={e => setParentFormData(prev => ({ ...prev, motherPhone: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Mother's Email</label>
-                    <Input
-                      type="email"
-                      className="input input-bordered w-full"
-                      value={parentFormData.motherEmail}
-                      onChange={e => setParentFormData(prev => ({ ...prev, motherEmail: e.target.value }))}
                     />
                   </div>
 
@@ -588,8 +588,6 @@ export default function StudentProfile() {
                 )}
               </Card>
             </form>
-
-
           </div>
         </div>
       </div>
