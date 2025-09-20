@@ -244,7 +244,7 @@ export default function Services() {
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                        <BreadcrumbPage>Service Details</BreadcrumbPage>
+                        <BreadcrumbPage>{service?.name}</BreadcrumbPage>
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>
@@ -371,7 +371,7 @@ export default function Services() {
                                             </TableCell>
                                             <TableCell className="font-medium text-gray-900 py-4 px-6">
                                                 <div className="flex justify-center gap-2">
-                                                    <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200">
+                                                    <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200" onClick={() => router.push(`/dashboard/vendor/services/batch/${batch.id}`)}>
                                                         <Eye className="w-4 h-4 mr-1" />
                                                         View
                                                     </Button>
@@ -496,28 +496,87 @@ export default function Services() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700">Start Time</label>
-                                    <Input
-                                        type="time"
-                                        id="time-picker"
-                                        step="1"
-                                        value={batchData.startTime}
-                                        onChange={(e) => setBatchData({ ...batchData, startTime: e.target.value })}
-                                        required
-                                        className="w-full"
-                                    />
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={batchData.startTime ? (() => {
+                                                const [hours, minutes] = batchData.startTime.split(':');
+                                                const hour24 = parseInt(hours);
+                                                const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                const period = hour24 < 12 ? 'AM' : 'PM';
+                                                return `${hour12}:${minutes} ${period}`;
+                                            })() : ''}
+                                            onValueChange={(value) => {
+                                                const [time, period] = value.split(' ');
+                                                const [hours, minutes] = time.split(':');
+                                                let hour24 = parseInt(hours);
+                                                if (period === 'PM' && hour24 !== 12) hour24 += 12;
+                                                if (period === 'AM' && hour24 === 12) hour24 = 0;
+                                                const time24 = `${hour24.toString().padStart(2, '0')}:${minutes}`;
+                                                setBatchData({ ...batchData, startTime: time24 });
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select start time" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 48 }, (_, i) => {
+                                                    const hour24 = Math.floor(i / 2);
+                                                    const minutes = i % 2 === 0 ? '00' : '30';
+                                                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                    const period = hour24 < 12 ? 'AM' : 'PM';
+                                                    const displayTime = `${hour12}:${minutes} ${period}`;
+                                                    const value24 = `${hour24.toString().padStart(2, '0')}:${minutes}`;
+                                                    return (
+                                                        <SelectItem key={i} value={`${hour12}:${minutes} ${period}`}>
+                                                            {displayTime}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700">End Time</label>
-                                    <Input
-                                        type="time"
-                                        id="time-picker"
-                                        step="1"
-                                        value={batchData.endTime}
-                                        onChange={(e) => setBatchData({ ...batchData, endTime: e.target.value })}
-                                        required
-                                        className="w-full"
-                                    />
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={batchData.endTime ? (() => {
+                                                const [hours, minutes] = batchData.endTime.split(':');
+                                                const hour24 = parseInt(hours);
+                                                const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                const period = hour24 < 12 ? 'AM' : 'PM';
+                                                return `${hour12}:${minutes} ${period}`;
+                                            })() : ''}
+                                            onValueChange={(value) => {
+                                                const [time, period] = value.split(' ');
+                                                const [hours, minutes] = time.split(':');
+                                                let hour24 = parseInt(hours);
+                                                if (period === 'PM' && hour24 !== 12) hour24 += 12;
+                                                if (period === 'AM' && hour24 === 12) hour24 = 0;
+                                                const time24 = `${hour24.toString().padStart(2, '0')}:${minutes}`;
+                                                setBatchData({ ...batchData, endTime: time24 });
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select end time" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 48 }, (_, i) => {
+                                                    const hour24 = Math.floor(i / 2);
+                                                    const minutes = i % 2 === 0 ? '00' : '30';
+                                                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                    const period = hour24 < 12 ? 'AM' : 'PM';
+                                                    const displayTime = `${hour12}:${minutes} ${period}`;
+                                                    return (
+                                                        <SelectItem key={i} value={`${hour12}:${minutes} ${period}`}>
+                                                            {displayTime}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                                 </div>                                
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -680,26 +739,86 @@ export default function Services() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700">Start Time</label>
-                                    <Input
-                                        type="time"
-                                        step="1"
-                                        value={editBatchData.startTime}
-                                        onChange={(e) => setEditBatchData({ ...editBatchData, startTime: e.target.value })}
-                                        required
-                                        className="w-full"
-                                    />
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={editBatchData.startTime ? (() => {
+                                                const [hours, minutes] = editBatchData.startTime.split(':');
+                                                const hour24 = parseInt(hours);
+                                                const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                const period = hour24 < 12 ? 'AM' : 'PM';
+                                                return `${hour12}:${minutes} ${period}`;
+                                            })() : ''}
+                                            onValueChange={(value) => {
+                                                const [time, period] = value.split(' ');
+                                                const [hours, minutes] = time.split(':');
+                                                let hour24 = parseInt(hours);
+                                                if (period === 'PM' && hour24 !== 12) hour24 += 12;
+                                                if (period === 'AM' && hour24 === 12) hour24 = 0;
+                                                const time24 = `${hour24.toString().padStart(2, '0')}:${minutes}`;
+                                                setEditBatchData({ ...editBatchData, startTime: time24 });
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select start time" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 48 }, (_, i) => {
+                                                    const hour24 = Math.floor(i / 2);
+                                                    const minutes = i % 2 === 0 ? '00' : '30';
+                                                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                    const period = hour24 < 12 ? 'AM' : 'PM';
+                                                    const displayTime = `${hour12}:${minutes} ${period}`;
+                                                    return (
+                                                        <SelectItem key={i} value={`${hour12}:${minutes} ${period}`}>
+                                                            {displayTime}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700">End Time</label>
-                                    <Input
-                                        type="time"
-                                        step="1"
-                                        value={editBatchData.endTime}
-                                        onChange={(e) => setEditBatchData({ ...editBatchData, endTime: e.target.value })}
-                                        required
-                                        className="w-full"
-                                    />
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={editBatchData.endTime ? (() => {
+                                                const [hours, minutes] = editBatchData.endTime.split(':');
+                                                const hour24 = parseInt(hours);
+                                                const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                const period = hour24 < 12 ? 'AM' : 'PM';
+                                                return `${hour12}:${minutes} ${period}`;
+                                            })() : ''}
+                                            onValueChange={(value) => {
+                                                const [time, period] = value.split(' ');
+                                                const [hours, minutes] = time.split(':');
+                                                let hour24 = parseInt(hours);
+                                                if (period === 'PM' && hour24 !== 12) hour24 += 12;
+                                                if (period === 'AM' && hour24 === 12) hour24 = 0;
+                                                const time24 = `${hour24.toString().padStart(2, '0')}:${minutes}`;
+                                                setEditBatchData({ ...editBatchData, endTime: time24 });
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select end time" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 48 }, (_, i) => {
+                                                    const hour24 = Math.floor(i / 2);
+                                                    const minutes = i % 2 === 0 ? '00' : '30';
+                                                    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+                                                    const period = hour24 < 12 ? 'AM' : 'PM';
+                                                    const displayTime = `${hour12}:${minutes} ${period}`;
+                                                    return (
+                                                        <SelectItem key={i} value={`${hour12}:${minutes} ${period}`}>
+                                                            {displayTime}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </div>
                             
