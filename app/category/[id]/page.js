@@ -655,10 +655,10 @@ export default function CategoryPage() {
                       </div>
                       
                       <div className="flex space-x-2">
-                        <Button className="flex-1">
+                        <Button className="flex-1" onClick={() => router.push(`/category/${categoryId}/service/${service.id}`)}>
                           Book Now
                         </Button>
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" onClick={() => router.push(`/category/${categoryId}/service/${service.id}`)}>
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </div>

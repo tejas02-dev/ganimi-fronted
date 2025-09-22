@@ -145,14 +145,14 @@ export default function Navbar({ searchQuery = "", onSearchChange, showSearch = 
                     <DropdownMenuSeparator />
                     
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="flex items-center">
+                      <Link href="/dashboard/student" className="flex items-center">
                         <User className="mr-2 h-4 w-4" />
                         <span>Dashboard</span>
                       </Link>
                     </DropdownMenuItem>
                     
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center">
+                      <Link href="/dashboard/student/profile" className="flex items-center">
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Account Settings</span>
                       </Link>
@@ -166,7 +166,7 @@ export default function Navbar({ searchQuery = "", onSearchChange, showSearch = 
                     </DropdownMenuItem>
                     
                     <DropdownMenuItem asChild>
-                      <Link href="/bookings" className="flex items-center">
+                      <Link href="/dashboard/student/bookings" className="flex items-center">
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>My Bookings</span>
                       </Link>
@@ -180,7 +180,7 @@ export default function Navbar({ searchQuery = "", onSearchChange, showSearch = 
                     </DropdownMenuItem>
                     
                     <DropdownMenuItem asChild>
-                      <Link href="/favorites" className="flex items-center">
+                      <Link href="/dashboard/student/favorites" className="flex items-center">
                         <Heart className="mr-2 h-4 w-4" />
                         <span>Favorites</span>
                       </Link>

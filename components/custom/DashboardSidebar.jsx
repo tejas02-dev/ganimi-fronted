@@ -12,7 +12,7 @@ import {
     SidebarMenuItem, 
     SidebarGroupContent} from "../ui/sidebar";
 import { usePathname } from "next/navigation";
-import { Home, User, Users, Package, LibraryBig, ShoppingCart, BookOpen, Settings, BarChart3, Heart, Bell, AlarmClock, BadgeInfo } from "lucide-react";
+import { Home, User, Users, Package, LibraryBig, ShoppingCart, BookOpen, Settings, BarChart3, Heart, Bell, AlarmClock, BadgeInfo, Tv } from "lucide-react";
 import NavUser from "./NavUser";
 
 export default function DashboardSidebar() {
@@ -44,6 +44,7 @@ export default function DashboardSidebar() {
             { title: 'Notifications', url: '/dashboard/vendor/notifications', icon: Bell },
             { title: 'Analytics', url: '/dashboard/vendor/analytics', icon: BarChart3 },
             { title: 'Settings', url: '/dashboard/vendor/settings', icon: Settings },
+            { title: 'Live', url: '/dashboard/vendor/live-classes', icon: Tv },
             { title: 'Contact Us', url: '/dashboard/vendor/contact-us', icon: BadgeInfo },
         ],
         student: [
@@ -51,13 +52,13 @@ export default function DashboardSidebar() {
             { title: 'Profile', url: '/dashboard/student/profile', icon: User },
             { title: 'Browse Categories', url: '/dashboard/student/categories', icon: Package },
             { title: 'My Services', url: '/dashboard/student/services', icon: LibraryBig },
-            { title: 'My Bookings', url: '/dashboard/student/bookings', icon: BookOpen },
             { title: 'My Orders', url: '/dashboard/student/orders', icon: ShoppingCart },
             { title: 'Reports', url: '/dashboard/student/reports', icon: BarChart3 },
             { title: 'Favorites', url: '/dashboard/student/favorites', icon: Heart },
             { title: 'Notifications', url: '/dashboard/student/notifications', icon: Bell },
             { title: 'Reminders', url: '/dashboard/student/reminders', icon: AlarmClock },
             { title: 'Settings', url: '/dashboard/student/settings', icon: Settings },
+            { title: 'Live', url: '/dashboard/student/live-classes', icon: Tv },
             { title: 'Contact Us', url: '/dashboard/student/contact-us', icon: BadgeInfo },
         ],
         default: [

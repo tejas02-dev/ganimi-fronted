@@ -26,6 +26,7 @@ export default function Batch() {
     const [attendanceFilter, setAttendanceFilter] = useState('all');
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [attendanceData, setAttendanceData] = useState({});
+    const [enrollments, setEnrollments] = useState([]);
     const router = useRouter();
 
     // Helper function to convert 24-hour to 12-hour format
@@ -87,9 +88,9 @@ export default function Batch() {
     };
 
     // Initialize attendance data on component mount
-    useEffect(() => {
-        setAttendanceData(generateAttendanceData());
-    }, []);
+    // useEffect(() => {
+    //     setAttendanceData(generateAttendanceData());
+    // }, []);
 
     // Get attendance for selected date
     const getAttendanceForDate = (date) => {
@@ -127,6 +128,45 @@ export default function Batch() {
     };
 
 
+    const updateAttendance = async (enrollmentId, status) => {
+        try{
+            const response = await fetch(`http://localhost:5500/api/v1/enrollment/${enrollmentId}`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    status: status
+                }),
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: "include"
+            })
+        }catch(error)
+        {
+            console.error(error);
+        }
+    }
+
+    const fetchEnrollments = async (batchId) => {
+        try{
+            const response = await fetch(`http://localhost:5500/api/v1/enrollment/batch/${batchId}`, {
+                method: "GET",
+                credentials: "include"
+            });
+            if(response.ok)
+            {
+            const data = await response.json()
+            setEnrollments(data.data);
+            }
+            else
+            {
+                console.error(response.statusText);
+            }
+        }catch(error)
+        {
+            console.error(error);
+        }
+    }
+
     const fetchBatch = async (id) => {
         try{
             const response = await fetch(`http://localhost:5500/api/v1/batches/${id}`, {
@@ -163,6 +203,12 @@ export default function Batch() {
     useEffect(() => {
         fetchBatch(id)
     }, [id])
+
+    useEffect(() => {
+        if (batch?.id) {
+            fetchEnrollments(batch.id)
+        }
+    }, [batch])
 
     useEffect(() => {
         if (batch?.serviceId) {
@@ -337,81 +383,58 @@ export default function Batch() {
                                             </Button>
                                         </div>
                                         <div className="space-y-3">
-                                                {[
-                                                    {
-                                                        id: 1,
-                                                        name: "Aarav Sharma",
-                                                        image: "https://randomuser.me/api/portraits/men/32.jpg",
-                                                        status: "present",
-                                                    },
-                                                    {
-                                                        id: 2,
-                                                        name: "Isha Patel",
-                                                        image: "https://randomuser.me/api/portraits/women/44.jpg",
-                                                        status: "absent",
-                                                    },
-                                                    {
-                                                        id: 3,
-                                                        name: "Rohan Mehta",
-                                                        image: "https://randomuser.me/api/portraits/men/65.jpg",
-                                                        status: "present",
-                                                    },
-                                                    {
-                                                        id: 4,
-                                                        name: "Priya Singh",
-                                                        image: "https://randomuser.me/api/portraits/women/68.jpg",
-                                                        status: "present",
-                                                    },
-                                                ].map((student) => (
-                                                <div key={student.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                                            {
+                                                enrollments.map((enrollment) => (
+                                                    <div key={enrollment.studentId} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
                                                     {/* Student Info */}
                                                     <div className="flex items-center gap-3">
                                                         <img
-                                                            src={student.image}
-                                                            alt={student.name}
+                                                            src={enrollment.studentProfilePicture}
+                                                            alt={enrollment.studentName}
                                                             className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                                                         />
                                                         <div>
-                                                            <p className="font-medium text-gray-900">{student.name}</p>
-                                                            <p className="text-sm text-gray-500">Student ID: ST{student.id.toString().padStart(3, '0')}</p>
+                                                            <p className="font-medium text-gray-900">{enrollment.studentName}</p>
+                                                            <p className="text-sm text-gray-500">Student ID: ST{enrollment.studentId.toString().padStart(3, '0')}</p>
                                                         </div>
                                                     </div>
 
                                                     {/* Attendance Toggle Buttons */}
                                                     <div className="flex gap-2">
                                                         <Button
-                                                            variant={student.status === 'present' ? 'default' : 'outline'}
+                                                            variant={enrollment.todayAttendance?.status === 'present' ? 'default' : 'outline'}  
                                                             size="sm"
                                                             className={`min-w-[80px] ${
-                                                                student.status === 'present' 
+                                                                enrollment.todayAttendance?.status === 'present' 
                                                                     ? 'bg-green-600 hover:bg-green-700 text-white' 
                                                                     : 'hover:bg-green-50 hover:text-green-700 hover:border-green-300'
                                                             }`}
                                                             onClick={() => {
                                                                 // Handle present toggle
-                                                                console.log(`Mark ${student.name} as present`);
+                                                                console.log(`Mark ${enrollment.studentName} as present`);
                                                             }}
                                                         >
                                                             Present
                                                         </Button>
                                                         <Button
-                                                            variant={student.status === 'absent' ? 'default' : 'outline'}
+                                                            variant={enrollment.todayAttendance?.status === 'absent' ? 'default' : 'outline'}
                                                             size="sm"
                                                             className={`min-w-[80px] ${
-                                                                student.status === 'absent' 
+                                                                enrollment.todayAttendance?.status === 'absent' 
                                                                     ? 'bg-red-600 hover:bg-red-700 text-white' 
                                                                     : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
                                                             }`}
                                                             onClick={() => {
                                                                 // Handle absent toggle
-                                                                console.log(`Mark ${student.name} as absent`);
+                                                                console.log(`Mark ${enrollment.studentName} as absent`);
                                                             }}
                                                         >
                                                             Absent
                                                         </Button>
                                                     </div>
                                                 </div>
-                                            ))}
+                                                ))
+                                            }
                                         </div>
                                     </CardContent>
                                 </Card>
