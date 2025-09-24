@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
 import DatePicker from "@/components/custom/DatePicker";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 import {
     Select,
@@ -24,7 +26,8 @@ import {
 export default function StudentProfile() {
     const router = useRouter();
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { user: authUser, updateUserField } = useAuth();
+    const [loading, setLoading] = useState(false);
 
     const [profileImageMessage, setProfileImageMessage] = useState("");
     const [profileMessage, setProfileMessage] = useState("");
@@ -69,47 +72,19 @@ export default function StudentProfile() {
         oldPassword: "",
         newPassword: "",
     });
-
     useEffect(() => {
-        checkAuthAndFetchData();
+        fetchUserProfile();
     }, []);
 
     useEffect(() => {
         updateFormData();
     }, [user]);
 
-    const checkAuthAndFetchData = async () => {
-        try {
-            const userData = localStorage.getItem("user");
-            if (!userData) {
-                router.push("/login");
-                return;
-            }
-
-            const parsedUser = JSON.parse(userData);
-            setUser(parsedUser);
-
-            await Promise.all([
-                fetchUserProfile()
-            ]);
-        } catch (error) {
-            console.error("Error loading dashboard:", error);
-            router.push("/login");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const fetchUserProfile = async () => {
         try {
-            const response = await fetch("http://localhost:5500/api/v1/auth/user", {
-                credentials: "include",
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setUser(prev => ({ ...prev, ...data.user }));
-                localStorage.setItem("user", JSON.stringify(data.user));
-            }
+            const response = await api.get("/auth/user");
+            const data = response.data;
+            setUser(data.data);
         } catch (error) {
             console.error("Error fetching profile:", error);
         }
@@ -185,19 +160,30 @@ export default function StudentProfile() {
             const formData = new FormData();
             formData.append('profilePicture', profileImageFormData.profilePicture);
 
-            const response = await fetch("http://localhost:5500/api/v1/auth/update-profile-image", {
-                method: "PUT",
-                credentials: "include",
-                body: formData,
+            const response = await api.put("/auth/update-profile-image", formData,{
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
             });
+            const data = response.data;
 
-            const data = await response.json();
-
-            if (data.status === 'ok') {
+            if (response.status === 200) {
                 toast.success(data.message || "Profile image updated successfully!");
                 setProfileImageMessage("Profile image updated successfully!");
-                // Update user state with new profile picture URL
-                setUser(prev => ({ ...prev, profilePicture: data.profilePicture }));
+                const newProfilePicture = data.data?.profilePicture || data.profilePicture || data.data?.user?.profilePicture;
+                console.log("New profile picture URL:", newProfilePicture);
+                
+                if (newProfilePicture) {
+                  // Update local user state
+                  setUser(prev => ({ ...prev, profilePicture: newProfilePicture }));
+                  
+                  // Update global AuthContext user state - only the profilePicture field
+                  updateUserField('profilePicture', newProfilePicture);
+                } else {
+                  // If no profile picture in response, refresh the profile data
+                  console.log("No profile picture in response, refreshing profile...");
+                  await fetchUserProfile();
+                }
             } else {
                 setProfileImageMessage(data.message || "Failed to update profile image");
             }
@@ -214,21 +200,14 @@ export default function StudentProfile() {
         setProfileMessage("");
 
         try {
-            const response = await fetch("http://localhost:5500/api/v1/auth/update-vendor-profile", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify(profileFormData),
-            });
-            if (response.status === 'ok') {
-                const data = await response.json();
-                setUser(prev => ({ ...prev, ...profileFormData }));
+            const response = await api.put("/auth/update-vendor-profile", profileFormData)
+            const data = response.data; 
+            if (response.status === 200) {
+                setProfileFormData(prev => ({ ...prev, ...profileFormData }));
                 toast.success(data.message || "Profile updated successfully!");
                 setProfileMessage("Profile updated successfully!");
             } else {
-                const errorData = await response.json();
+                const errorData = data;
                 setProfileMessage(errorData.message || "Failed to update profile");
             }
         } catch (error) {
@@ -244,21 +223,14 @@ export default function StudentProfile() {
         setInstitutionMessage("");
 
         try {
-            const response = await fetch("http://localhost:5500/api/v1/auth/update-institution-profile", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify(institutionFormData),
-            });
-            if (response.status === 'ok') {
-                const data = await response.json();
-                setUser(prev => ({ ...prev, ...institutionFormData }));
+            const response = await api.put("/auth/update-institution-profile", institutionFormData)
+            const data = response.data;
+            if (response.status === 200) {
+                setInstitutionFormData(prev => ({ ...prev, ...institutionFormData }));
                 toast.success(data.message || "Institution profile updated successfully!");
                 setInstitutionMessage("Institution profile updated successfully!");
             } else {
-                const errorData = await response.json();
+                const errorData = data;
                 setInstitutionMessage(errorData.message || "Failed to update institution profile");
             }
         } catch (error) {
@@ -274,21 +246,14 @@ export default function StudentProfile() {
         setBankMessage("");
 
         try {
-            const response = await fetch("http://localhost:5500/api/v1/auth/update-bank-profile", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify(bankFormData),
-            });
-            if (response.status === 'ok') {
-                const data = await response.json();
-                setUser(prev => ({ ...prev, ...bankFormData }));
+            const response = await api.put("/auth/update-bank-profile", bankFormData)
+            const data = response.data;
+            if (response.status === 200) {
+                setBankFormData(prev => ({ ...prev, ...bankFormData }));
                 toast.success(data.message || "Bank profile updated successfully!");
                 setBankMessage("Bank profile updated successfully!");
             } else {
-                const errorData = await response.json();
+                const errorData = data;
                 setBankMessage(errorData.message || "Failed to update bank profile");
             }
         } catch (error) {
@@ -304,27 +269,20 @@ export default function StudentProfile() {
         setPasswordMessage("");
 
         try {
-            const response = await fetch("http://localhost:5500/api/v1/auth/update-password", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify(passwordFormData),
-            });
-            if (response.status === 'ok') {
-                const data = await response.json();
+            const response = await api.put("/auth/update-password", passwordFormData)
+            const data = response.data;
+            if (response.status === 200) {
                 toast.success(data.message || "Password updated successfully!");
                 setPasswordMessage("Password updated successfully!");
             } else {
-                const errorData = await response.json();
+                const errorData = data;
                 setPasswordMessage(errorData.message || "Failed to update password");
             }
         } catch (error) {
-            setPasswordMessage("An error occurred while updating password");
+            setBankMessage("An error occurred while updating bank profile");
         } finally {
             setLoading(false);
-        }
+        }    
     };
 
     return (

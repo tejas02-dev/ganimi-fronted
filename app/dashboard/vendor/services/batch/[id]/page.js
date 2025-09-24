@@ -1,21 +1,18 @@
 "use client";
 
 import { Toaster } from "sonner"
+import { toast } from "sonner"
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { useParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Loader2, Pencil, Calendar, Clock, Users, MapPin, IndianRupee, Tag, TrendingUp, TrendingDown, BarChart3, Filter } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-
+import api from "@/lib/api"
+import BatchOverview from "@/components/custom/BatchOverview"
+import StudentListTab from "@/components/custom/StudentListTab"
+import AttendanceTab from "@/components/custom/AttendanceTab"
 
 export default function Batch() {
     const { id } = useParams();
@@ -29,137 +26,99 @@ export default function Batch() {
     const [enrollments, setEnrollments] = useState([]);
     const router = useRouter();
 
-    // Helper function to convert 24-hour to 12-hour format
-    const formatTime = (time24) => {
-        if (!time24) return 'Not set';
-        const [hours, minutes] = time24.split(':');
-        const hour24 = parseInt(hours);
-        const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
-        const period = hour24 < 12 ? 'AM' : 'PM';
-        return `${hour12}:${minutes} ${period}`;
-    };
-
-    // Helper function to format date
-    const formatDate = (dateString) => {
-        if (!dateString) return 'Not set';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
-
-    // Helper function to format date with short month
-    const formatDateShort = (dateString) => {
-        if (!dateString) return 'Not set';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-        });
-    };
-
-    // Dummy attendance data for different dates
-    const generateAttendanceData = () => {
-        const students = [
-            { id: 1, name: "Aarav Sharma", image: "https://randomuser.me/api/portraits/men/32.jpg" },
-            { id: 2, name: "Isha Patel", image: "https://randomuser.me/api/portraits/women/44.jpg" },
-            { id: 3, name: "Rohan Mehta", image: "https://randomuser.me/api/portraits/men/65.jpg" },
-            { id: 4, name: "Priya Singh", image: "https://randomuser.me/api/portraits/women/68.jpg" },
-            { id: 5, name: "Arjun Kumar", image: "https://randomuser.me/api/portraits/men/75.jpg" },
-            { id: 6, name: "Sneha Reddy", image: "https://randomuser.me/api/portraits/women/82.jpg" }
-        ];
-
-        const attendanceRecords = {};
-        const today = new Date();
-        
-        // Generate attendance for last 30 days
-        for (let i = 0; i < 30; i++) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            const dateKey = date.toISOString().split('T')[0];
-            
-            attendanceRecords[dateKey] = students.map(student => ({
-                ...student,
-                status: Math.random() > 0.15 ? 'present' : 'absent'
-            }));
-        }
-        
-        return attendanceRecords;
-    };
-
-    // Initialize attendance data on component mount
-    // useEffect(() => {
-    //     setAttendanceData(generateAttendanceData());
-    // }, []);
 
     // Get attendance for selected date
     const getAttendanceForDate = (date) => {
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = getLocalDateString(date);
         return attendanceData[dateKey] || [];
     };
 
-    // Update student attendance status
-    const updateStudentAttendance = (date, studentId, newStatus) => {
-        const dateKey = date.toISOString().split('T')[0];
-        setAttendanceData(prev => ({
-            ...prev,
-            [dateKey]: prev[dateKey]?.map(student => 
-                student.id === studentId 
-                    ? { ...student, status: newStatus }
-                    : student
-            ) || []
-        }));
+    // Helper function to get local date string (avoids timezone issues)
+    const getLocalDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Fetch attendance data for a specific date
+    const fetchAttendanceForDate = async (date) => {
+        try {
+            const dateKey = getLocalDateString(date);
+            const response = await api.get(`/attendance/batch/${batch.id}/date/${dateKey}`);
+            const data = response.data;
+            if(response.status === 200) {
+                setAttendanceData(prev => ({
+                    ...prev,
+                    [dateKey]: data.data
+                }));
+            }
+        } catch (error) {
+            console.error("Error fetching attendance:", error);
+            toast.error("Failed to fetch attendance data");
+        }
+    };
+
+    // Filter attendance based on status
+    const filterAttendance = (attendanceList, filter) => {
+        if (filter === 'all') return attendanceList;
+        return attendanceList.filter(student => {
+            const status = student.todaysAttendance?.status;
+            if (filter === 'present') return status === 'present';
+            if (filter === 'absent') return status === 'absent' || status === null;
+            return true;
+        });
     };
 
     // Calculate attendance stats
     const calculateStats = (attendanceList) => {
         const total = attendanceList.length;
-        const present = attendanceList.filter(s => s.status === 'present').length;
-        const absent = attendanceList.filter(s => s.status === 'absent').length;
+        const present = attendanceList.filter(s => s.todaysAttendance?.status === 'present').length;
+        const absent = attendanceList.filter(s => s.todaysAttendance?.status === 'absent' || s.todaysAttendance === null).length;
         const attendanceRate = total > 0 ? Math.round((present / total) * 100) : 0;
         
         return { total, present, absent, attendanceRate };
-    };
-
-    // Filter attendance based on selected filter
-    const filterAttendance = (attendanceList, filter) => {
-        if (filter === 'all') return attendanceList;
-        return attendanceList.filter(student => student.status === filter);
-    };
-
-
-    const updateAttendance = async (enrollmentId, status) => {
-        try{
-            const response = await fetch(`http://localhost:5500/api/v1/enrollment/${enrollmentId}`, {
-                method: "PATCH",
-                body: JSON.stringify({
-                    status: status
-                }),
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                credentials: "include"
-            })
-        }catch(error)
-        {
-            console.error(error);
-        }
     }
+
+    // Update student attendance for a specific date
+    const updateStudentAttendance = async (date, studentId, status) => {
+        try {
+            const dateKey = getLocalDateString(date);
+            const response = await api.put(`/attendance/batch/${batch.id}/mark`, {
+                date: dateKey,
+                studentId: studentId,
+                status: status
+            });
+            
+            if (response.status === 200) {
+                toast.success(`Marked student as ${status}`);
+                // Update the attendance data locally
+                setEnrollments(prev => prev.map(enrollment => 
+                    enrollment.studentId === studentId || enrollment.id === studentId
+                        ? { ...enrollment, todaysAttendance: { ...enrollment.todaysAttendance, status: status } }
+                        : enrollment
+                ));
+                setAttendanceData(prev => ({
+                    ...prev,
+                    [dateKey]: prev[dateKey]?.map(student => 
+                        student.studentId === studentId || student.id === studentId
+                            ? { ...student, todaysAttendance: { ...student.todaysAttendance, status: status } }
+                            : student
+                    ) || []
+                }));
+            }
+        } catch (error) {
+            console.error("Error updating attendance:", error);
+            toast.error("Failed to update attendance");
+        }
+    };
 
     const fetchEnrollments = async (batchId) => {
         try{
-            const response = await fetch(`http://localhost:5500/api/v1/enrollment/batch/${batchId}`, {
-                method: "GET",
-                credentials: "include"
-            });
-            if(response.ok)
-            {
-            const data = await response.json()
-            setEnrollments(data.data);
-            }
-            else
-            {
-                console.error(response.statusText);
+            const response = await api.get(`/enrollment/batch/${batchId}`);
+            const data = response.data;
+            if(response.status === 200) {
+                setEnrollments(data.data);
             }
         }catch(error)
         {
@@ -169,34 +128,27 @@ export default function Batch() {
 
     const fetchBatch = async (id) => {
         try{
-            const response = await fetch(`http://localhost:5500/api/v1/batches/${id}`, {
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                method: "GET",
-                credentials: "include"
-            })
-            const data = await response.json()
-            setBatch(data.data)
-        } catch (error) {
-            console.error(error)
+            const response = await api.get(`/batches/${id}`);
+            const data = response.data;
+            if(response.status === 200) {
+                setBatch(data.data);
+            }
+        }catch(error)
+        {
+            console.error(error);
         }
     }
 
-    
     const fetchService = async (serviceId) => {
         try{
-            const response = await fetch(`http://localhost:5500/api/v1/services/${serviceId}`, {
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                method: "GET",
-                credentials: "include"
-            })
-            const data = await response.json()
-            setService(data.data)
-        } catch (error) {
-            console.error(error)
+            const response = await api.get(`/services/${serviceId}`);
+            const data = response.data;
+            if(response.status === 200) {
+                setService(data.data);
+            }
+        }catch(error)
+        {
+            console.error(error);
         }
     }
 
@@ -215,6 +167,12 @@ export default function Batch() {
             fetchService(batch.serviceId)
         }
     }, [batch])
+
+    useEffect(() => {
+        if (batch?.id && selectedDate) {
+            fetchAttendanceForDate(selectedDate)
+        }
+    }, [batch?.id, selectedDate])
 
     return (
         <div className="p-4 sm:p-6 lg:p-10">
@@ -247,97 +205,12 @@ export default function Batch() {
             ) : batch ? (
                 <>
                 <div className="mt-6">
-                    {/* Compact Batch Overview */}
-                    <Card className="w-full mb-6 gap-0">
-                        <CardHeader className="">
-                            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <CardTitle className="text-xl font-bold text-gray-900">
-                                            {batch.name}
-                                        </CardTitle>
-                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                            {batch.status || 'Active'}
-                                        </Badge>
-                                    </div>
-                                    <CardDescription className="text-gray-600 mb-3">
-                                        Part of <span className="font-medium text-blue-600">{service?.name}</span> service
-                                    </CardDescription>
-                                </div>
-                                
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => router.push(`/dashboard/vendor/services/${service?.id}`)}
-                                    >
-                                        Back to Service
-                                    </Button>
-                                    <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={() => {
-                                            router.push(`/dashboard/vendor/services/${service?.id}#edit-${batch.id}`);
-                                        }}
-                                        className="bg-primary hover:bg-primary/50"
-                                    >
-                                        <Pencil className="w-4 h-4 mr-1" />
-                                        Edit
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                            {/* Compact Info Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <IndianRupee className="w-4 h-4 text-green-600" />
-                                    <div>
-                                        <p className="text-xs text-gray-500">Price</p>
-                                        <p className="font-semibold text-green-600">₹{batch.price}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-blue-600" />
-                                    <div>
-                                        <p className="text-xs text-gray-500">Capacity</p>
-                                        <p className="font-medium">{batch.capacity} students</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Tag className="w-4 h-4 text-purple-600" />
-                                    <div>
-                                        <p className="text-xs text-gray-500">Age Group</p>
-                                        <p className="font-medium">{batch.ageGroup}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-orange-600" />
-                                    <div>
-                                        <p className="text-xs text-gray-500">Time</p>
-                                        <p className="font-medium">{formatTime(batch.startTime)} - {formatTime(batch.endTime)}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-4 h-4 text-red-600" />
-                                    <div>
-                                        <p className="text-xs text-gray-500">Duration</p>
-                                        <p className="font-medium">{formatDateShort(batch.startDate)} - {formatDateShort(batch.endDate)}</p>
-                                    </div>
-                                </div>
-                                <div className="col-span-2 md:col-span-2 lg:col-span-1">
-                                    <p className="text-xs text-gray-500 mb-1">Days</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {(batch.daysOfWeek || '').split(', ').filter(day => day).map((day, index) => (
-                                            <Badge key={index} variant="secondary" className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5">
-                                                {day.substring(0, 3)}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <BatchOverview 
+                        batch={batch}
+                        service={service}
+                        onBackToService={() => router.push(`/dashboard/vendor/services/${service?.id}`)}
+                        onEdit={() => router.push(`/dashboard/vendor/services/${service?.id}#edit-${batch.id}`)}
+                    />
 
                     {/* Students and Attendance Section Placeholder */}
                     <Card className="w-full">
@@ -354,350 +227,26 @@ export default function Batch() {
                                 <TabsTrigger value="attendance">Attendance Monitoring</TabsTrigger>
                             </TabsList>
                             <TabsContent value="students">
-                                <Card>
-                                    <CardHeader>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <CardTitle>Students</CardTitle>
-                                                <CardDescription>Search and manage students in this batch</CardDescription>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-medium text-gray-900">Today's Attendance</p>
-                                                <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-US', {
-                                                    weekday: 'long',
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })}</p>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-center mb-4 gap-2">
-                                            <Input
-                                                placeholder="Search students..."
-                                                className="max-w-xs"
-                                            />
-                                            <Button variant="outline" size="sm" className="ml-auto">
-                                                Mark All Present
-                                            </Button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {
-                                                enrollments.map((enrollment) => (
-                                                    <div key={enrollment.studentId} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                                                    {/* Student Info */}
-                                                    <div className="flex items-center gap-3">
-                                                        <img
-                                                            src={enrollment.studentProfilePicture}
-                                                            alt={enrollment.studentName}
-                                                            className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                                                        />
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{enrollment.studentName}</p>
-                                                            <p className="text-sm text-gray-500">Student ID: ST{enrollment.studentId.toString().padStart(3, '0')}</p>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Attendance Toggle Buttons */}
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            variant={enrollment.todayAttendance?.status === 'present' ? 'default' : 'outline'}  
-                                                            size="sm"
-                                                            className={`min-w-[80px] ${
-                                                                enrollment.todayAttendance?.status === 'present' 
-                                                                    ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                                                    : 'hover:bg-green-50 hover:text-green-700 hover:border-green-300'
-                                                            }`}
-                                                            onClick={() => {
-                                                                // Handle present toggle
-                                                                console.log(`Mark ${enrollment.studentName} as present`);
-                                                            }}
-                                                        >
-                                                            Present
-                                                        </Button>
-                                                        <Button
-                                                            variant={enrollment.todayAttendance?.status === 'absent' ? 'default' : 'outline'}
-                                                            size="sm"
-                                                            className={`min-w-[80px] ${
-                                                                enrollment.todayAttendance?.status === 'absent' 
-                                                                    ? 'bg-red-600 hover:bg-red-700 text-white' 
-                                                                    : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
-                                                            }`}
-                                                            onClick={() => {
-                                                                // Handle absent toggle
-                                                                console.log(`Mark ${enrollment.studentName} as absent`);
-                                                            }}
-                                                        >
-                                                            Absent
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                                ))
-                                            }
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <StudentListTab 
+                                    enrollments={enrollments}
+                                    selectedDate={selectedDate}
+                                    updateStudentAttendance={updateStudentAttendance}
+                                />
                             </TabsContent>
+
                             <TabsContent value="attendance">
-                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                                    {/* Calendar Section */}
-                                    <div className="lg:col-span-1">
-                                        <Card>
-                                            <CardHeader>
-                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                    <Calendar className="w-5 h-5" />
-                                                    Select Date
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <div className="space-y-4">
-                                                    {/* Calendar Component */}
-                                                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                                                        <PopoverTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                className="w-full justify-start text-left font-normal"
-                                                            >
-                                                                <Calendar className="mr-2 h-4 w-4" />
-                                                                {selectedDate.toLocaleDateString('en-US', {
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                    year: 'numeric'
-                                                                })}
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <CalendarComponent
-                                                                mode="single"
-                                                                selected={selectedDate}
-                                                                onSelect={(date) => {
-                                                                    if (date) {
-                                                                        setSelectedDate(date);
-                                                                        setCalendarOpen(false);
-                                                                    }
-                                                                }}
-                                                                initialFocus
-                                                            />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                    
-                                                    {/* Quick Date Buttons */}
-                                                    <div className="space-y-2">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="w-full justify-start"
-                                                            onClick={() => setSelectedDate(new Date())}
-                                                        >
-                                                            Today
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="w-full justify-start"
-                                                            onClick={() => {
-                                                                const yesterday = new Date();
-                                                                yesterday.setDate(yesterday.getDate() - 1);
-                                                                setSelectedDate(yesterday);
-                                                            }}
-                                                        >
-                                                            Yesterday
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="w-full justify-start"
-                                                            onClick={() => {
-                                                                const lastWeek = new Date();
-                                                                lastWeek.setDate(lastWeek.getDate() - 7);
-                                                                setSelectedDate(lastWeek);
-                                                            }}
-                                                        >
-                                                            Last Week
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-
-                                    {/* Main Dashboard Section */}
-                                    <div className="lg:col-span-3">
-                                        <div className="space-y-6">
-                                            {/* Date Header & Stats */}
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                                <div>
-                                                    <h3 className="text-lg font-semibold text-gray-900">
-                                                        Attendance for {selectedDate.toLocaleDateString('en-US', {
-                                                            weekday: 'long',
-                                                            year: 'numeric',
-                                                            month: 'long',
-                                                            day: 'numeric'
-                                                        })}
-                                                    </h3>
-                                                    <p className="text-sm text-gray-500">
-                                                        Review and manage attendance records
-                                                    </p>
-                                                </div>
-
-                                                {/* Filter Buttons */}
-                                                <div className="flex gap-2">
-                                                    {['all', 'present', 'absent'].map((filter) => (
-                                                        <Button
-                                                            key={filter}
-                                                            variant={attendanceFilter === filter ? 'default' : 'outline'}
-                                                            size="sm"
-                                                            onClick={() => setAttendanceFilter(filter)}
-                                                            className="capitalize"
-                                                        >
-                                                            {filter}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Stats Cards */}
-                                            {(() => {
-                                                const attendanceList = getAttendanceForDate(selectedDate);
-                                                const stats = calculateStats(attendanceList);
-                                                return (
-                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                        <Card>
-                                                            <CardContent className="p-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                                                        <Users className="w-5 h-5 text-blue-600" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-sm text-gray-500">Total Students</p>
-                                                                        <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-                                                                    </div>
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                        
-                                                        <Card>
-                                                            <CardContent className="p-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="p-2 bg-green-100 rounded-lg">
-                                                                        <TrendingUp className="w-5 h-5 text-green-600" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-sm text-gray-500">Present</p>
-                                                                        <p className="text-xl font-bold text-green-600">{stats.present}</p>
-                                                                    </div>
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                        
-                                                        <Card>
-                                                            <CardContent className="p-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="p-2 bg-red-100 rounded-lg">
-                                                                        <TrendingDown className="w-5 h-5 text-red-600" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-sm text-gray-500">Absent</p>
-                                                                        <p className="text-xl font-bold text-red-600">{stats.absent}</p>
-                                                                    </div>
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                        
-                                                        <Card>
-                                                            <CardContent className="p-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                                                        <BarChart3 className="w-5 h-5 text-blue-600" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-sm text-gray-500">Attendance Rate</p>
-                                                                        <p className="text-xl font-bold text-blue-600">{stats.attendanceRate}%</p>
-                                                                    </div>
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                    </div>
-                                                );
-                                            })()}
-
-                                            {/* Student Attendance List */}
-                                            <Card>
-                                                <CardHeader>
-                                                    <CardTitle className="text-lg">Student Attendance</CardTitle>
-                                                    <CardDescription>
-                                                        Detailed attendance status for the selected date
-                                                    </CardDescription>
-                                                </CardHeader>
-                                                <CardContent>
-                                                    {(() => {
-                                                        const attendanceList = getAttendanceForDate(selectedDate);
-                                                        const filteredList = filterAttendance(attendanceList, attendanceFilter);
-                                                        
-                                                        if (filteredList.length === 0) {
-                                                            return (
-                                                                <div className="text-center py-8 text-gray-500">
-                                                                    <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                                                                    <p>No attendance records found for this date and filter.</p>
-                                                                </div>
-                                                            );
-                                                        }
-
-                                                        return (
-                                                            <div className="space-y-3">
-                                                                {filteredList.map((student) => (
-                                                                    <div key={student.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                                                                        {/* Student Info */}
-                                                                        <div className="flex items-center gap-3">
-                                                                            <img
-                                                                                src={student.image}
-                                                                                alt={student.name}
-                                                                                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                                                                            />
-                                                                            <div>
-                                                                                <p className="font-medium text-gray-900">{student.name}</p>
-                                                                                <p className="text-sm text-gray-500">Student ID: ST{student.id.toString().padStart(3, '0')}</p>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Attendance Toggle Buttons */}
-                                                                        <div className="flex gap-2">
-                                                                            <Button
-                                                                                variant={student.status === 'present' ? 'default' : 'outline'}
-                                                                                size="sm"
-                                                                                className={`min-w-[70px] ${
-                                                                                    student.status === 'present' 
-                                                                                        ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                                                                        : 'hover:bg-green-50 hover:text-green-700 hover:border-green-300'
-                                                                                }`}
-                                                                                onClick={() => updateStudentAttendance(selectedDate, student.id, 'present')}
-                                                                            >
-                                                                                Present
-                                                                            </Button>
-                                                                            <Button
-                                                                                variant={student.status === 'absent' ? 'default' : 'outline'}
-                                                                                size="sm"
-                                                                                className={`min-w-[70px] ${
-                                                                                    student.status === 'absent' 
-                                                                                        ? 'bg-red-600 hover:bg-red-700 text-white' 
-                                                                                        : 'hover:bg-red-50 hover:text-red-700 hover:border-red-300'
-                                                                                }`}
-                                                                                onClick={() => updateStudentAttendance(selectedDate, student.id, 'absent')}
-                                                                            >
-                                                                                Absent
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </CardContent>
-                                            </Card>
-                                        </div>
-                                    </div>
-                                </div>
+                                <AttendanceTab 
+                                    selectedDate={selectedDate}
+                                    setSelectedDate={setSelectedDate}
+                                    calendarOpen={calendarOpen}
+                                    setCalendarOpen={setCalendarOpen}
+                                    attendanceFilter={attendanceFilter}
+                                    setAttendanceFilter={setAttendanceFilter}
+                                    getAttendanceForDate={getAttendanceForDate}
+                                    filterAttendance={filterAttendance}
+                                    updateStudentAttendance={updateStudentAttendance}
+                                    fetchAttendanceForDate={fetchAttendanceForDate}
+                                />
                             </TabsContent>
                         </Tabs>
                         </CardContent>

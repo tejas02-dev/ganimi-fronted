@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { initiateServicePayment } from "@/lib/razorpay";
+import api from "@/lib/api";
 
 export default function ServicePage({ params }) {
   const router = useRouter();
@@ -60,16 +61,12 @@ export default function ServicePage({ params }) {
       
       // Fetch service details and category info in parallel
       const [serviceResponse, categoryResponse] = await Promise.all([
-        fetch(`http://localhost:5500/api/v1/services/${serviceId}`, {
-          credentials: "include",
-        }),
-        fetch(`http://localhost:5500/api/v1/categories/${categoryId}`, {
-          credentials: "include",
-        }),
+        api.get(`/services/${serviceId}`),
+        api.get(`/categories/${categoryId}`),
       ]);
 
-      if (serviceResponse.ok) {
-        const serviceData = await serviceResponse.json();
+      if (serviceResponse.status === 200) {
+        const serviceData = await serviceResponse.data;
         console.log("Service data:", serviceData);
         const serviceInfo = serviceData.data || serviceData;
         setService(serviceInfo);
@@ -82,8 +79,8 @@ export default function ServicePage({ params }) {
         toast.error("Service not found");
       }
 
-      if (categoryResponse.ok) {
-        const categoryData = await categoryResponse.json();
+      if (categoryResponse.status === 200) {
+        const categoryData = await categoryResponse.data;
         console.log("Category data:", categoryData);
         setCategory(categoryData.category || categoryData);
       }
@@ -102,25 +99,18 @@ export default function ServicePage({ params }) {
     }
     
     try{
-      const response = await fetch(`http://localhost:5500/api/v1/orders/service/${serviceId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          batchId: selectedBatch.id,
-        }),
-        credentials: "include",
+      const response = await api.post(`/orders/service/${serviceId}`, {
+        batchId: selectedBatch.id,
       });
       
-      const data = await response.json();
+      const data = await response.data;
       await initiateServicePayment(data, service.name, selectedBatch.name, {
-              successMessage: "Service booked successfully!",
-              onSuccess: () => {
-                toast.success(`Service booked successfully!`);
-                router.push(`/dashboard/student/services`);
-              },
-            });
+        successMessage: "Service booked successfully!",
+        onSuccess: () => {
+          toast.success(`Service booked successfully!`);
+          router.push(`/dashboard/student/services`);
+        },
+      });
     } catch (error) {
       console.error("Error booking service:", error);
       toast.error("Failed to book service");

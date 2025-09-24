@@ -12,12 +12,15 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+
 export default function Services() {
     const router = useRouter();
     const [services, setServices] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { user: authUser } = useAuth();
+    const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editingService, setEditingService] = useState(null);
@@ -54,7 +57,7 @@ export default function Services() {
         setEditFormData({
             name: service.name,
             description: service.description,
-            categoryId: service.categoryId || user?.categoryId,
+            categoryId: service.categoryId || authUser?.categoryId,
             address: service.address,
             pincode: service.pincode,
             price: service.price,
@@ -68,12 +71,10 @@ export default function Services() {
 
     const handleDeleteService = async () => {
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/services/${deleteServiceId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            const data = await response.json();
-            if (data.status === 'ok') {
+            const response = await api.delete(`/services/${deleteServiceId}`);
+            const data = response.data;
+            
+            if (response.status === 200) {
                 setDeleteService(false);
                 setServices(services.filter(service => service.id !== deleteServiceId));
                 toast.success("Service deleted successfully");
@@ -89,16 +90,10 @@ export default function Services() {
     const handleEditService = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/services/${editingService.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify(editFormData),
-            });
-            const data = await response.json();
-            if (data.status === 'ok') {
+            const response = await api.put(`/services/${editingService.id}`, editFormData);
+            const data = response.data;
+            
+            if (response.status === 200) {
                 setEditOpen(false);
                 // Update the service in the services array
                 setServices(services.map(service => 
@@ -120,16 +115,10 @@ export default function Services() {
         e.preventDefault();
         console.log(formData);
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/services`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify(formData),
-            });
-            const data = await response.json();
-            if (data.status === 'ok') {
+            const response = await api.post(`/services`, formData);
+            const data = response.data;
+            
+            if (response.status === 200) {
                 setOpen(false);
                 setServices([...services, data.data[0]]);
                 toast.success("Service created successfully");
@@ -143,21 +132,16 @@ export default function Services() {
     }
 
     const fetchCategories = async () => {
-        if (!user || !user.categoryId) {
+        if (!authUser || !authUser.categoryId) {
             console.error("User or categoryId not available");
             return;
         }
 
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/categories/${user.categoryId}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-            })
-            if (response.ok) {
-                const data = await response.json();
+            const response = await api.get(`/categories/${authUser.categoryId}`);
+            const data = response.data;
+
+            if (response.status === 200) {
                 setCategories(data.data);
                 console.log(data.data);
             } else {
@@ -169,32 +153,11 @@ export default function Services() {
         }
     }
 
-    const checkAuthAndFetchData = async () => {
-        try {
-            const userData = localStorage.getItem("user");
-            if (!userData) {
-                router.push("/login");
-                return;
-            }
-
-            const parsedUser = JSON.parse(userData);
-            setUser(parsedUser);
-        } catch (error) {
-            console.error("Error loading dashboard:", error);
-            router.push("/login");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const fetchServices = async () => {
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/services/user/${user.id}`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            if (response.ok) {
-                const data = await response.json();
+            const response = await api.get(`/services/user/${authUser.id}`);
+            const data = response.data;
+            if (response.status === 200) {
                 setServices(data.data);
                 console.log(data.data);
             } else {
@@ -208,16 +171,12 @@ export default function Services() {
     }
 
     useEffect(() => {
-        checkAuthAndFetchData();
-    }, []);
-
-    useEffect(() => {
-        if (user && user.categoryId) {
-            setFormData({ ...formData, categoryId: user.categoryId });
+        if (authUser && authUser.categoryId) {
+            setFormData({ ...formData, categoryId: authUser.categoryId });
             fetchCategories();
             fetchServices();
         }
-    }, [user?.categoryId]);
+    }, [authUser?.categoryId]);
 
     return (
         <div className="p-4 sm:p-6 lg:p-10">

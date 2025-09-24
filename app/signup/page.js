@@ -9,11 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Lock, User, GraduationCap, Store, Shield } from "lucide-react";
+import api from "@/lib/api";
+
 
 export default function SignupPage() {
-
-
-  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -106,23 +105,11 @@ export default function SignupPage() {
     }
 
     try {
-      const response = await fetch("http://localhost:5500/api/v1/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          category: formData.category,
-          password: formData.password,
-          role: formData.role,
-        }),
-      });
+      const response = await api.post("/auth/register", formData);
 
-      const data = await response.json();
+      const data = await response.data;
 
-      if (response.ok) {
+      if (response.status === 200) {
         setSuccess("Account created successfully! Redirecting to login...");
         setTimeout(() => {
           router.push("/login");
@@ -140,10 +127,9 @@ export default function SignupPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:5500/api/v1/categories');
-        const data = await response.json();
+        const response = await api.get("/categories");
+        const data = await response.data;
         
-        // Handle different API response structures
         if (Array.isArray(data)) {
           setCategories(data);
         } else if (data.data && Array.isArray(data.data)) {

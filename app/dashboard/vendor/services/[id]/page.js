@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
 import { useParams } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
+import api from "@/lib/api";
 export default function Services() {
     const router = useRouter();
     const { id } = useParams();
@@ -89,23 +90,11 @@ export default function Services() {
     const fetchService = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://localhost:5500/api/v1/services/${id}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-            });
-            const data = await response.json();
-            console.log('API Response:', data); // Debug log
-
-            // Handle different response structures
-            if (data.data) {
+            const response = await api.get(`/services/${id}`);
+            const data = response.data;
+            
+            if (response.status === 200) {
                 setService(data.data);
-            } else if (Array.isArray(data) && data.length > 0) {
-                setService(data[0]);
-            } else if (data.service) {
-                setService(data.service);
             } else {
                 setService(null);
             }
@@ -120,16 +109,9 @@ export default function Services() {
 
     const fetchBatches = async () => {
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/batches/service/${id}`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                method: 'GET',
-                credentials: 'include',
-            });
-            const data = await response.json();
-            console.log('API Response:', data); // Debug log
-            if (data.data) {
+            const response = await api.get(`/batches/service/${id}`);
+            const data = response.data;
+            if (response.status === 200) {
                 setBatches(data.data);
             } else {
                 setBatches([]);
@@ -150,25 +132,16 @@ export default function Services() {
                 daysOfWeek: batchData.daysOfWeek.join(', ') // Convert array to comma-separated string for API
             };
             
-            const response = await fetch(`http://localhost:5500/api/v1/batches`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                method: 'POST',
-                credentials: 'include',
-                body: JSON.stringify(batchPayload)
-            });
-            const data = await response.json();
-            console.log('API Response:', data); // Debug log
-            if (data.data) {
+            const response = await api.post(`/batches`, batchPayload);
+            const data = response.data;
+            if (response.status === 200) {
                 setBatches([...batches, data.data[0]]);
                 toast.success('Batch created successfully');
                 setBatchOpen(false);
             } else {
                 toast.error('Failed to create batch');
             }
-        }
-        catch (error) {
+        }catch (error) {
             console.error('Error creating batch:', error);
             toast.error('Failed to create batch');
         }
@@ -183,17 +156,9 @@ export default function Services() {
                 daysOfWeek: Array.isArray(editBatchData.daysOfWeek) ? editBatchData.daysOfWeek.join(', ') : editBatchData.daysOfWeek
             };
             
-            const response = await fetch(`http://localhost:5500/api/v1/batches/${editingBatch.id}`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                method: 'PUT',
-                credentials: 'include',
-                body: JSON.stringify(batchPayload)
-            });
-            const data = await response.json();
-            console.log('API Response:', data); // Debug log
-            if (data.data) {
+            const response = await api.put(`/batches/${editingBatch.id}`, batchPayload);
+            const data = response.data;
+            if (response.status === 200) {
                 setBatches(batches.map(batch => batch.id === editingBatch.id ? data.data : batch));
                 toast.success('Batch updated successfully');
                 setEditBatchOpen(false);
@@ -209,13 +174,9 @@ export default function Services() {
 
     const handleDeleteBatch = async () => {
         try {
-            const response = await fetch(`http://localhost:5500/api/v1/batches/${deleteBatchId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            const data = await response.json();
-            console.log('API Response:', data); // Debug log
-            if (data.status==='ok') {
+            const response = await api.delete(`/batches/${deleteBatchId}`);
+            const data = response.data;
+            if (response.status === 200) {
                 setBatches(batches.filter(batch => batch.id !== deleteBatchId));
                 toast.success('Batch deleted successfully');
                 setDeleteBatch(false);

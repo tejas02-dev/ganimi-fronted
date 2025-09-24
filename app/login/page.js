@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, Mail, Lock, GraduationCap } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -18,14 +20,44 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, user } = useAuth();
+  
+  // Redirect authenticated users
+  useEffect(() => {
+    if (user) {
+      const redirectTo = searchParams.get('redirect') || getDashboardForRole(user.role);
+      router.push(redirectTo);
+    }
+  }, [user, router, searchParams]);
 
+  // Helper function to get dashboard based on role
+  const getDashboardForRole = (role) => {
+    const dashboardMap = {
+      student: '/dashboard/student',
+      admin: '/dashboard/admin',
+      vendor: '/dashboard/vendor',
+    };
+    return dashboardMap[role?.toLowerCase()] || '/dashboard/student';
+  };
+  
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-    // Clear error when user starts typing
     if (error) setError("");
+  };
+
+  const GetUserProfile = async () => {
+    try {
+      const response = await api.get('/auth/profile');
+      const data = await response.data;
+      login(data.data);
+    } catch (error) {
+      console.error("Error getting user profile:", error);
+    }
+    
   };
 
   const handleSubmit = async (e) => {
@@ -34,21 +66,14 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:5500/api/v1/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
+      const response = await api.post('/auth/login', formData);
       
-      if (response.ok) {
-        // Login successful
-        localStorage.setItem("user", JSON.stringify(data.user));
-        router.push("/");
+      const data = await response.data;
+      
+      if (response.status === 200) {
+        await GetUserProfile();
+        const redirectTo = searchParams.get('redirect') || getDashboardForRole(data.user.role);
+        router.push(redirectTo);
       } else {
         setError(data.message || "Login failed. Please try again.");
       }

@@ -9,6 +9,8 @@ import { Toaster } from "sonner";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { initiateCategoryPayment } from "@/lib/razorpay";
+import api from "@/lib/api";
+
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -47,16 +49,14 @@ export default function Categories() {
 
     const fetchData = async () => {
         try{
-            await fetch("http://localhost:5500/api/v1/student/categories", {
-                credentials: "include",
-            }).then(res => res.json()).then(data => {
-                const sortedCategories = data.data.sort((a, b) => {
-                    if (a.access !== null && b.access === null) return -1; // a has access, comes first
-                    if (a.access === null && b.access !== null) return 1;  // b has access, comes first
-                    return 0; // both have same access status, maintain original order
-                });
-                setCategories(sortedCategories);
-            });
+          const response = await api.get("/student/categories");
+          const data = response.data;
+          const sortedCategories = data.data.sort((a, b) => {
+            if (a.access !== null && b.access === null) return -1; // a has access, comes first
+            if (a.access === null && b.access !== null) return 1;  // b has access, comes first
+            return 0; // both have same access status, maintain original order
+          });
+          setCategories(sortedCategories);
         }catch(error){
             console.error("Error fetching categories:", error);
         }
@@ -94,28 +94,19 @@ export default function Categories() {
 
     const handleIndividualSubscribe = async (categoryId, categoryPrice) => {
         try {
-              const response = await fetch('http://localhost:5500/api/v1/orders/category', {
-                credentials: "include",
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  orderItems: [{categoryId: categoryId, price: categoryPrice}],
-                })
-              }); 
-              
-              const data = await response.json();
-              await initiateCategoryPayment(data, {
-                successMessage: "Subscribed to category successfully!",
-                onSuccess: () => {
-                  toast.success(`Subscribed to category successfully!`);
-                  fetchData(); // Refresh the categories list to show updated access
-                },
-              });
+          const response = await api.post("/orders/category", {
+            orderItems: [{categoryId: categoryId, price: categoryPrice}],
+          });
+          const data = response.data;
+          await initiateCategoryPayment(data, {
+            successMessage: "Subscribed to category successfully!",
+            onSuccess: () => {
+              toast.success(`Subscribed to category successfully!`);
+              fetchData(); // Refresh the categories list to show updated access
+            },
+          });
         } catch (error) {
-            toast.error("Failed to subscribe to category");
-            console.error("Subscription error:", error);
+          toast.error("Failed to subscribe to category");
         }
     };
 
@@ -137,26 +128,18 @@ export default function Categories() {
         }
         
         try {
-            const response = await fetch('http://localhost:5500/api/v1/orders/category', {
-              credentials: "include",
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                orderItems: selectedCategories,
-              })
-            }); 
-            
-            const data = await response.json();
-            await initiateCategoryPayment(data, {
-              successMessage: "Subscribed to categories successfully!",
-              onSuccess: () => {
-                toast.success(`Subscribed to categories successfully!`);
-                fetchData();
-              },
-            });
-            setSelectedCategories([]);
+          const response = await api.post("/orders/category", {
+            orderItems: selectedCategories,
+          });
+          const data = response.data;
+          await initiateCategoryPayment(data, {
+            successMessage: "Subscribed to categories successfully!",
+            onSuccess: () => {
+              toast.success(`Subscribed to categories successfully!`);
+              fetchData();
+            },
+          });
+          setSelectedCategories([]);
         } catch (error) {
             toast.error("Failed to subscribe to categories!");
             console.error("Bulk subscription error:", error);

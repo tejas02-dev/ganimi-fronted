@@ -21,42 +21,27 @@ import {
   } from "@/components/ui/sidebar"
 import { useRouter } from "next/navigation";
 import { EllipsisVertical, LogOut } from "lucide-react";
-
+import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 export default function NavUser() {
-    const [userData, setUserData] = useState(null);
-    const isMobile = useSidebar();
-    const router = useRouter();
 
+  const isMobile = useSidebar();
+    const router = useRouter();
+    const { logout, user } = useAuth();
     const handleLogout = async () => {
       try {
-        await fetch("http://localhost:5500/api/v1/auth/logout", {
-          method: "POST",
-          credentials: "include",
-        });
+        await api.post('/auth/logout');
+        logout();
+        router.push("/login");
       } catch (error) {
         console.error("Logout error:", error);
-      } finally {
-        localStorage.removeItem("user");
-        setUserData(null);
+        logout();
         router.push("/login");
       }
     };
-    useEffect(() => {
-        // Only access localStorage on the client side
-        if (typeof window !== 'undefined') {
-            const user = localStorage.getItem("user");
-            if (user) {
-                try {
-                    const parsedUser = JSON.parse(user);
-                    setUserData(parsedUser);
-                } catch (error) {
-                    console.error("Error parsing user data:", error);
-                }
-            }
-        }
-    }, []);
+
     // Show loading state if userData is not available yet
-    if (!userData) {
+    if (!user) {
         return (
             <SidebarMenu>
                 <SidebarMenuItem>
@@ -83,15 +68,15 @@ export default function NavUser() {
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
                 <Avatar className="h-8 w-8 rounded-lg grayscale">
-                  <AvatarImage src={userData?.profilePicture} alt={userData?.name} />
+                  <AvatarImage src={user?.profilePicture} alt={user?.name} />
                   <AvatarFallback className="rounded-lg">
-                    {userData?.name?.charAt(0)?.toUpperCase() || "U"}
+                    {user?.name?.charAt(0)?.toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{userData?.name || "User"}</span>
+                  <span className="truncate font-medium">{user?.name || "User"}</span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {userData?.email || ""}
+                    {user?.email || ""}
                   </span>
                 </div>
                 <EllipsisVertical className="ml-auto size-4" />
@@ -106,15 +91,15 @@ export default function NavUser() {
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={userData?.profilePicture} alt={userData?.name} />
+                    <AvatarImage src={user?.profilePicture} alt={user?.name} />
                     <AvatarFallback className="rounded-lg">
-                      {userData?.name?.charAt(0)?.toUpperCase() || "U"}
+                      {user?.name?.charAt(0)?.toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{userData?.name || "User"}</span>
+                    <span className="truncate font-medium">{user?.name || "User"}</span>
                     <span className="text-muted-foreground truncate text-xs">
-                      {userData?.email || ""}
+                      {user?.email || ""}
                     </span>
                   </div>
                 </div>

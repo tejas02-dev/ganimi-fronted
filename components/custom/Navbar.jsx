@@ -28,35 +28,20 @@ import {
   Heart,
   GraduationCap
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/api";
 
 export default function Navbar({ searchQuery = "", onSearchChange, showSearch = true }) {
-  const [user, setUser] = useState(null);
   const router = useRouter();
-
-  useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (error) {
-        console.error("Error parsing user data:", error);
-        localStorage.removeItem("user");
-      }
-    }
-  }, []);
-
+  const { user, logout } = useAuth();
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5500/api/v1/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await api.post('/auth/logout');
+      logout(); // This now handles localStorage cleanup automatically
+      router.push("/login");
     } catch (error) {
       console.error("Logout error:", error);
-    } finally {
-      localStorage.removeItem("user");
-      setUser(null);
+      logout(); // Still logout locally even if server call fails
       router.push("/login");
     }
   };
@@ -118,7 +103,7 @@ export default function Navbar({ searchQuery = "", onSearchChange, showSearch = 
                   <DropdownMenuTrigger asChild>
                     <div className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors">
                       <Avatar className="w-8 h-8 ring-2 ring-blue-100 hover:ring-blue-300 transition-all">
-                        <AvatarImage src={user.avatar} />
+                        <AvatarImage src={user?.profilePicture} />
                         <AvatarFallback className="bg-blue-600 text-white font-semibold">
                           {user.name?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>
